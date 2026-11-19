@@ -1,0 +1,1669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>API Resilience Planner · Konkan Generics</title>
+  <meta name="description" content="Decision-support app: dual-sourcing and safety stock for imported APIs under supply-disruption risk (Supply Chain Analytics course project).">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+/* API Resilience Planner - utilitarian instrument: warm paper base, deep green accent, hairline structure. */
+:root {
+  --bg: #f5f3ee; --panel: #ffffff; --ink: #1d1c19; --ink-2: #4a4843; --muted: #75726b; --line: #e3dfd6; --line-2: #d3cec2;
+  --accent: #1f6f5c; --accent-soft: #e4f0ec; --accent-ink: #144a3d;
+  --chart-accent: #2a78d6; --chart-muted: #b9b5ab; --grid: #ebe8e1; --axis: #a8a398;
+  --good: #1d7f4e; --good-soft: #e3f3ea; --bad: #c0412f; --bad-soft: #fbe9e5; --warn: #a86a06; --warn-soft: #fbf1dc;
+  --seg-1: #8aa9c9; --seg-2: #c9b98a; --seg-3: #b7b2a7;
+  --font: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --r: 8px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); }
+h1 { font-size: 28px; line-height: 1.15; letter-spacing: -0.02em; margin: 0 0 8px; font-weight: 650; }
+h3 { font-size: 16px; margin: 0 0 12px; font-weight: 600; letter-spacing: -0.005em; }
+h4 { font-size: 13px; margin: 20px 0 4px; font-weight: 600; color: var(--ink-2); }
+p { margin: 0 0 10px; }
+code, .mono { font-family: var(--mono); font-size: 12.5px; }
+.muted { color: var(--muted); } .small { font-size: 13px; } .strong { font-weight: 600; }
+
+/* layout */
+.shell { display: grid; grid-template-columns: 248px 1fr; min-height: 100vh; }
+.side { position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto; background: #efece5; border-right: 1px solid var(--line); padding: 20px 14px; display: flex; flex-direction: column; gap: 18px; }
+.brand { display: flex; gap: 10px; align-items: center; padding: 0 6px; }
+.mark { width: 30px; height: 30px; border-radius: 7px; background: var(--accent); position: relative; flex: none; }
+.mark::before, .mark::after { content: ''; position: absolute; left: 7px; height: 3px; border-radius: 2px; background: #fff; }
+.mark::before { top: 10px; width: 10px; } .mark::after { top: 17px; width: 16px; }
+.brand-name { font-weight: 650; font-size: 14.5px; letter-spacing: -0.01em; } .brand-sub { font-size: 12px; color: var(--muted); }
+nav { display: flex; flex-direction: column; gap: 2px; }
+nav a { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 6px; color: var(--ink-2); text-decoration: none; font-size: 14px; }
+nav a:hover { background: #e6e2d9; }
+nav a.on { background: var(--panel); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); font-weight: 600; }
+.step { width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--line-2); display: grid; place-items: center; font-size: 11px; font-family: var(--mono); color: var(--muted); flex: none; }
+nav a.on .step { background: var(--accent); border-color: var(--accent); color: #fff; }
+.badge { margin-left: auto; font-size: 11px; font-family: var(--mono); background: var(--accent-soft); color: var(--accent-ink); border-radius: 10px; padding: 0 7px; }
+.side-foot { margin-top: auto; padding: 0 6px; display: grid; gap: 4px; }
+.status { font-size: 12.5px; color: var(--ink-2); }
+main { padding: 32px 40px 80px; max-width: 1120px; width: 100%; outline: none; animation: fade .25s ease both; }
+@keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* blocks */
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 20px 22px; margin: 0 0 16px; }
+.lead { padding: 8px 0 18px; }
+.eyebrow { font-family: var(--mono); font-size: 12px; color: var(--accent); letter-spacing: 0.02em; text-transform: uppercase; margin-bottom: 10px; }
+.lead h1 { font-size: 36px; max-width: 20ch; }
+.lede { color: var(--ink-2); max-width: 75ch; margin-bottom: 18px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } .grid-2 > .card { margin: 0; } .grid-2 { margin-bottom: 16px; }
+.row-between { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+ul.tight { padding-left: 18px; margin: 0; } ul.tight li { margin-bottom: 6px; }
+.callout { border: 1px solid var(--line); background: #faf8f4; border-radius: var(--r); padding: 12px 16px; margin: 0 0 16px; font-size: 14px; }
+.callout.good { border-color: #bfe0cd; background: var(--good-soft); } .callout.bad { border-color: #f0c2b8; background: var(--bad-soft); }
+.callout ul { margin: 6px 0 0; padding-left: 18px; }
+.cta-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+
+/* controls */
+.btn { font: inherit; font-size: 14px; font-weight: 500; padding: 8px 14px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--panel); color: var(--ink); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; }
+.btn:hover { border-color: var(--ink-2); } .btn:disabled { opacity: .5; cursor: progress; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; } .btn.primary:hover { background: var(--accent-ink); }
+.btn.small { padding: 3px 10px; font-size: 13px; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px 18px; }
+.field { display: grid; gap: 4px; font-size: 13px; color: var(--ink-2); } .field small { color: var(--muted); font-size: 12px; }
+.field.inline { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; }
+input[type=number], select { font: inherit; font-family: var(--mono); font-size: 13.5px; padding: 7px 9px; border: 1px solid var(--line-2); border-radius: 6px; background: #fff; color: var(--ink); min-width: 0; }
+select { font-family: var(--font); }
+input:focus, select:focus, .btn:focus-visible { outline: 2px solid var(--chart-accent); outline-offset: 1px; }
+.check { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
+.inline-fields { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; } .inline-fields label { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--ink-2); }
+.inline-fields input[type=number] { width: 80px; }
+.pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.pill { font: inherit; font-size: 13.5px; padding: 6px 14px; border-radius: 20px; border: 1px solid var(--line-2); background: #fff; cursor: pointer; }
+.pill.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.uploads { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.upload { display: grid; gap: 6px; border: 1px dashed var(--line-2); border-radius: var(--r); padding: 12px; background: #fcfbf8; }
+.upload input { font-size: 12.5px; }
+
+/* KPI tiles */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(136px, 1fr)); gap: 10px; margin: 14px 0 10px; }
+.kpi { border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; background: #fcfbf8; }
+.kpi-label { font-size: 12px; color: var(--muted); } .kpi-value { font-family: var(--mono); font-size: 20px; font-weight: 500; letter-spacing: -0.02em; margin: 2px 0; }
+.kpi-sub { font-size: 12px; color: var(--ink-2); }
+.kpi.accent { border-color: #b9d7cd; background: var(--accent-soft); } .kpi.good .kpi-sub { color: var(--good); }
+
+/* tables */
+.scroll { overflow-x: auto; }
+table.t { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-top: 8px; }
+.t th { text-align: left; font-weight: 600; font-size: 12px; color: var(--ink-2); border-bottom: 1px solid var(--line-2); padding: 6px 8px; vertical-align: bottom; }
+.t td { border-bottom: 1px solid var(--line); padding: 7px 8px; vertical-align: top; }
+.t .num { text-align: right; font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
+.t tr.hl td { background: var(--accent-soft); } .t td.bad { color: var(--bad); font-weight: 600; }
+.t.edit input { width: 100%; min-width: 80px; text-align: right; }
+.spark { width: 140px; height: 32px; display: block; }
+
+/* recommendations */
+ol.advice { padding-left: 20px; margin: 0 0 8px; } ol.advice li { margin-bottom: 8px; }
+.alert { border-radius: 6px; padding: 8px 12px; margin-top: 8px; font-size: 13.5px; border: 1px solid var(--line); }
+.alert.warning { background: var(--warn-soft); border-color: #ecd39f; } .alert.critical { background: var(--bad-soft); border-color: #f0c2b8; } .alert.info { background: #f6f5f1; }
+.alert-tag { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; margin-right: 6px; font-weight: 500; }
+.alert.warning .alert-tag { color: var(--warn); } .alert.critical .alert-tag { color: var(--bad); } .alert.info .alert-tag { color: var(--muted); }
+
+/* charts */
+svg.chart { width: 100%; height: auto; display: block; margin: 4px 0 6px; font-family: var(--font); }
+.chart .grid { stroke: var(--grid); } .chart .axis { stroke: var(--axis); } .chart .ref { stroke: var(--axis); stroke-dasharray: 4 4; }
+.chart .tick { fill: var(--muted); font-size: 11.5px; } .chart .tick.small { font-size: 10.5px; }
+.chart .label { fill: var(--ink); font-size: 12px; } .chart .label.strong { font-weight: 600; }
+.chart .line-muted { fill: none; stroke: var(--chart-muted); stroke-width: 2; } .chart .line-muted.thin { stroke-width: 1.5; }
+.spark .line-muted { fill: none; stroke: #9a958a; stroke-width: 1.5; }
+.chart .line-accent { fill: none; stroke: var(--chart-accent); stroke-width: 2; }
+.chart .whisker { stroke: var(--chart-accent); stroke-opacity: .45; stroke-width: 2; }
+.chart .dot-accent { fill: var(--chart-accent); } .chart .dot-muted { fill: var(--chart-muted); fill-opacity: .6; }
+.chart .ring-bad { fill: none; stroke: var(--bad); stroke-width: 2; } .chart .ring-ink { fill: #fff; stroke: var(--ink); stroke-width: 1.5; }
+.chart .leader { stroke: var(--chart-accent); }
+.chart .heat { fill: var(--chart-accent); } .chart .heat-off { stroke: var(--line); } .chart .hatch { stroke: var(--line-2); stroke-width: 2; }
+.chart .heat-rec { stroke: var(--ink); stroke-width: 2.5; fill-opacity: 1 !important; }
+.chart .bar-good { fill: var(--good); fill-opacity: .6; } .chart .bar-bad { fill: var(--bad); fill-opacity: .6; }
+.chart .seg-1 { fill: var(--seg-1); } .chart .seg-2 { fill: var(--seg-2); } .chart .seg-3 { fill: var(--seg-3); } .chart .seg-bad { fill: var(--bad); fill-opacity: .7; }
+.chart .box { fill: #fff; stroke: var(--line-2); stroke-width: 1.25; } .chart .box.focal { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; }
+.chart .arrow { fill: none; stroke: var(--axis); stroke-width: 1.25; } .chart .arrowhead { fill: var(--axis); }
+
+/* busy + toast */
+.busy { position: fixed; right: 24px; bottom: 24px; width: 380px; background: var(--ink); color: #fff; border-radius: var(--r); padding: 14px 16px; box-shadow: 0 8px 30px rgba(0,0,0,.18); z-index: 20; }
+.busy-label { font-size: 13px; margin-bottom: 8px; } .bar { height: 6px; background: #ffffff2e; border-radius: 3px; overflow: hidden; } .bar-fill { height: 100%; background: #7fd1b9; transition: width .15s; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: 24px; background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 6px; font-size: 13.5px; z-index: 21; }
+.print-only { display: none; }
+
+@media (max-width: 860px) {
+  .shell { grid-template-columns: 1fr; } .side { position: static; height: auto; } nav { flex-direction: row; flex-wrap: wrap; } .side-foot { display: none; }
+  main { padding: 20px 16px 60px; } .grid-2 { grid-template-columns: 1fr; } .lead h1 { font-size: 28px; } .busy { left: 16px; right: 16px; width: auto; }
+}
+@media print {
+  body { background: #fff; } .shell, .busy, .toast { display: none !important; } .print-only { display: block; padding: 0 8mm; }
+  .print-only .card { border: 1px solid #ccc; break-inside: avoid; } .print-only h1 { font-size: 22px; }
+}
+</style>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f6f5c'/%3E%3Cpath d='M9 20h14M9 14h9' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+</head>
+<body>
+  <div class="shell">
+    <aside class="side">
+      <div class="brand">
+        <div class="mark" aria-hidden="true"></div>
+        <div><div class="brand-name">API Resilience Planner</div><div class="brand-sub">Konkan Generics · SCA project</div></div>
+      </div>
+      <nav id="nav" aria-label="Screens"></nav>
+      <div class="side-foot"><div id="status" class="status"></div><div class="muted small">Runs entirely in your browser.</div></div>
+    </aside>
+    <main id="main" tabindex="-1"><noscript>This app needs JavaScript enabled.</noscript><p class="muted">Loading…</p></main>
+  </div>
+  <div id="busy" class="busy" hidden></div>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <div id="print" class="print-only"></div>
+  <script type="text/plain" id="worker-src">
+// rng.js - seeded random numbers so every run of the app is reproducible.
+// xoshiro128** generator, Box-Muller normals, Marsaglia-Tsang gamma.
+
+function makeRng(seed = 7) {
+  // splitmix32 to expand the seed into 4 state words
+  let s = seed >>> 0;
+  const sm = () => {
+    s = (s + 0x9e3779b9) >>> 0;
+    let z = s;
+    z = Math.imul(z ^ (z >>> 16), 0x85ebca6b) >>> 0;
+    z = Math.imul(z ^ (z >>> 13), 0xc2b2ae35) >>> 0;
+    return (z ^ (z >>> 16)) >>> 0;
+  };
+  let a = sm(), b = sm(), c = sm(), d = sm();
+  const next = () => {
+    const r = Math.imul(rotl(Math.imul(b, 5) >>> 0, 7), 9) >>> 0;
+    const t = (b << 9) >>> 0;
+    c ^= a; d ^= b; b ^= c; a ^= d; c ^= t; d = rotl(d, 11);
+    return r;
+  };
+  const random = () => (next() + 0.5) / 4294967296; // (0,1)
+  let spare = null;
+  const normal = () => {
+    if (spare !== null) { const v = spare; spare = null; return v; }
+    const u1 = random(), u2 = random();
+    const r = Math.sqrt(-2 * Math.log(u1));
+    spare = r * Math.sin(2 * Math.PI * u2);
+    return r * Math.cos(2 * Math.PI * u2);
+  };
+  // Gamma(shape k, scale theta) - Marsaglia & Tsang (2000); boost for k < 1
+  const gamma = (k, theta) => {
+    if (k < 1) return gamma(k + 1, theta) * Math.pow(random(), 1 / k);
+    const dd = k - 1 / 3, cc = 1 / Math.sqrt(9 * dd);
+    for (;;) {
+      let x, v;
+      do { x = normal(); v = 1 + cc * x; } while (v <= 0);
+      v = v * v * v;
+      const u = random();
+      if (u < 1 - 0.0331 * x * x * x * x) return dd * v * theta;
+      if (Math.log(u) < 0.5 * x * x + dd * (1 - v + Math.log(v))) return dd * v * theta;
+    }
+  };
+  return { random, normal, gamma };
+}
+
+function rotl(x, k) { return ((x << k) | (x >>> (32 - k))) >>> 0; }
+// simulation.js - JavaScript port of model/simulation.py (core prescriptive model, CLO 5).
+// Monte Carlo simulation-optimisation of a dual-sourcing + safety-stock policy for one API.
+//
+// Decision variables: alpha (share of each order to the China supplier), ssWk (safety stock in weeks),
+// sw (contingency switch: during a China-route disruption, order from India up to its crisis allocation).
+// Weekly steps, periodic review every R weeks, order-up-to level, lost sales.
+// Objective: min E[annual total cost] s.t. E[fill] >= target; near-ties (within 1%) broken by lowest CVaR95.
+
+const DEFAULT_CFG = { reps: 1000, warmup: 12, horizon: 52, review: 4, seed: 7, fillTarget: 0.98 };
+
+/** Pre-draw all random numbers once so every policy sees identical futures (common random numbers). */
+function drawRandomness(api, sc, cfg) {
+  const rng = makeRng(cfg.seed);
+  const T = cfg.warmup + cfg.horizon, Tx = T + 80, reps = cfg.reps;
+  const mu = api.weeklyMean;
+  const k = 1 / (api.weeklyCv * api.weeklyCv);
+  const demand = new Float64Array(reps * T);
+  for (let r = 0; r < reps; r++)
+    for (let t = 0; t < T; t++) demand[r * T + t] = rng.gamma(k, mu[t] / k);
+  // disruption path: 2-state weekly Markov chain
+  const D = new Uint8Array(reps * Tx);
+  const pEnd = 1 / Math.max(sc.meanDur, 1);
+  for (let r = 0; r < reps; r++) {
+    let on = false;
+    for (let t = 0; t < Tx; t++) {
+      const u1 = rng.random(), u2 = rng.random();
+      const start = !on && u1 < sc.pStart;
+      const stop = on && u2 < pEnd;
+      on = (on || start) && !stop;
+      D[r * Tx + t] = on ? 1 : 0;
+    }
+  }
+  const cumD = new Int32Array(reps * (Tx + 1));
+  for (let r = 0; r < reps; r++) {
+    let c = 0;
+    for (let t = 0; t < Tx; t++) { c += D[r * Tx + t]; cumD[r * (Tx + 1) + t + 1] = c; }
+  }
+  const nRev = Math.floor(T / cfg.review) + 1;
+  const ltc = new Int32Array(reps * nRev), lti = new Int32Array(reps * nRev);
+  for (let i = 0; i < reps * nRev; i++) {
+    ltc[i] = Math.max(api.ltChina[2], Math.round(api.ltChina[0] + api.ltChina[1] * rng.normal()));
+    lti[i] = Math.max(api.ltIndia[2], Math.round(api.ltIndia[0] + api.ltIndia[1] * rng.normal()));
+  }
+  return { demand, D, cumD, ltc, lti, T, Tx, nRev };
+}
+
+/** Simulate one policy over all replications. Returns per-replication arrays (one measured year each). */
+function simulate(api, sc, cfg, alpha, ssWk, sw, rnd) {
+  rnd = rnd || drawRandomness(api, sc, cfg);
+  const { demand, D, cumD, ltc, lti, T, Tx, nRev } = rnd;
+  const R = cfg.review, W = cfg.warmup, reps = cfg.reps, mu = api.weeklyMean;
+  const Leff = alpha * api.ltChina[0] + (1 - alpha) * api.ltIndia[0];
+  const cover = Math.ceil(R + Leff);
+  let meanW = 0; for (let t = 0; t < T; t++) meanW += mu[t]; meanW /= T;
+  const hWeek = api.holdingRate / 52 * api.priceChina;
+  const crisisShare = Math.min(api.indiaCapShare, api.surgeMultiplier * (1 - alpha));
+
+  // order-up-to level and requirement per review week (same for every replication)
+  const Sat = new Float64Array(nRev), reqAt = new Float64Array(nRev);
+  for (let j = 0; j < nRev; j++) {
+    const t = j * R;
+    let s = 0; for (let i = t; i < t + cover; i++) s += mu[i];
+    Sat[j] = s + ssWk * (s / cover);
+    let q = 0; for (let i = t; i < t + R; i++) q += mu[i];
+    reqAt[j] = q;
+  }
+  let init = 0; for (let i = 0; i < cover; i++) init += mu[i];
+  init += ssWk * meanW;
+
+  const out = {
+    total: new Float64Array(reps), purchase: new Float64Array(reps), ordering: new Float64Array(reps),
+    holding: new Float64Array(reps), shortage: new Float64Array(reps), fill: new Float64Array(reps),
+    lostKg: new Float64Array(reps), avgInvKg: new Float64Array(reps), chinaShare: new Float64Array(reps),
+    stockoutWeeks: new Float64Array(reps), demand: new Float64Array(reps),
+  };
+  const arrivals = new Float64Array(Tx + 1);
+
+  for (let r = 0; r < reps; r++) {
+    arrivals.fill(0);
+    let onHand = init, pipeline = 0;
+    let purchase = 0, ordering = 0, holding = 0, lost = 0, demTot = 0, invSum = 0, cKg = 0, iKg = 0, soW = 0;
+    const dBase = r * Tx, cBase = r * (Tx + 1), demBase = r * T;
+    for (let t = 0; t < T; t++) {
+      const measured = t >= W;
+      const rec = arrivals[t]; onHand += rec; pipeline -= rec;
+      if (t % R === 0) {
+        const j = t / R;
+        const Q = Math.max(0, Sat[j] - (onHand + pipeline));
+        const dis = D[dBase + t] === 1;
+        const aT = (dis && sw) ? 0 : alpha;
+        const cap = (dis ? crisisShare : api.indiaCapShare) * reqAt[j];
+        const qi = Math.min((1 - aT) * Q, cap);
+        const qc = Q - qi;
+        // China arrival held for every disrupted week it overlaps (iterate to settle)
+        const L = ltc[r * nRev + j];
+        let arrC = t + L;
+        for (let it = 0; it < 4; it++) {
+          const held = cumD[cBase + Math.min(arrC, Tx)] - cumD[cBase + t];
+          arrC = Math.min(t + L + held, Tx);
+        }
+        const arrI = Math.min(t + lti[r * nRev + j], Tx);
+        arrivals[arrC] += qc; arrivals[arrI] += qi;
+        pipeline += Q;
+        if (measured) {
+          const pc = api.priceChina * (1 + sc.chinaShock * (dis ? 1 : 0));
+          const pi = api.priceIndia * (1 + sc.chinaShock * sc.indiaPassthrough * (dis ? 1 : 0));
+          purchase += qc * pc + qi * pi;
+          ordering += (qc > 1e-9 ? api.orderCostChina : 0) + (qi > 1e-9 ? api.orderCostIndia : 0);
+          cKg += qc; iKg += qi;
+        }
+      }
+      const d = demand[demBase + t];
+      const sold = Math.min(onHand, d), short = d - sold;
+      onHand -= sold;
+      if (measured) {
+        lost += short; demTot += d; holding += onHand * hWeek; invSum += onHand;
+        if (short > 1e-9) soW++;
+      }
+    }
+    const shortage = lost * api.shortageCost;
+    out.purchase[r] = purchase; out.ordering[r] = ordering; out.holding[r] = holding; out.shortage[r] = shortage;
+    out.total[r] = purchase + ordering + holding + shortage;
+    out.fill[r] = 1 - lost / demTot; out.lostKg[r] = lost; out.avgInvKg[r] = invSum / cfg.horizon;
+    out.chinaShare[r] = cKg / Math.max(cKg + iKg, 1e-9); out.stockoutWeeks[r] = soW; out.demand[r] = demTot;
+  }
+  return out;
+}
+
+const mean = a => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i]; return s / a.length; };
+
+function cvar(x, q = 0.95) {
+  const s = Float64Array.from(x).sort();
+  const k = Math.floor(q * s.length);
+  let t = 0; for (let i = k; i < s.length; i++) t += s[i];
+  return t / (s.length - k);
+}
+
+function percentile(x, p) {
+  const s = Float64Array.from(x).sort(); const pos = (s.length - 1) * p / 100;
+  const lo = Math.floor(pos), hi = Math.ceil(pos);
+  return s[lo] + (s[hi] - s[lo]) * (pos - lo);
+}
+
+function summarise(res, meanW) {
+  const s = {};
+  for (const k of Object.keys(res)) s[k] = mean(res[k]);
+  let v = 0; const m = s.total; for (let i = 0; i < res.total.length; i++) v += (res.total[i] - m) ** 2;
+  s.totalSe = Math.sqrt(v / (res.total.length - 1)) / Math.sqrt(res.total.length);
+  s.cvar95 = cvar(res.total);
+  s.fillP05 = percentile(res.fill, 5);
+  s.pFillBelow95 = mean(res.fill.map(f => (f < 0.95 ? 1 : 0)));
+  if (meanW) s.avgInvWeeks = s.avgInvKg / meanW;
+  return s;
+}
+
+const ALPHAS = Array.from({ length: 11 }, (_, i) => Math.round(i * 10) / 100);
+const SS_GRID = Array.from({ length: 17 }, (_, i) => i);
+
+/** Exhaustive simulation-optimisation over the policy grid (CRN). onProgress(fraction) optional. */
+function optimise(api, sc, cfg, onProgress, alphas = ALPHAS, ssGrid = SS_GRID, switches = [false, true]) {
+  const rnd = drawRandomness(api, sc, cfg);
+  const meanW = measuredMean(api, cfg);
+  const out = []; const n = alphas.length * ssGrid.length * switches.length; let done = 0;
+  for (const sw of switches) for (const a of alphas) for (const ss of ssGrid) {
+    const s = summarise(simulate(api, sc, cfg, a, ss, sw, rnd), meanW);
+    out.push({ ...s, alpha: a, ssWk: ss, sw });
+    done++; if (onProgress && done % 17 === 0) onProgress(done / n);
+  }
+  return { results: out, rnd };
+}
+
+function measuredMean(api, cfg) {
+  let m = 0; for (let t = cfg.warmup; t < cfg.warmup + cfg.horizon; t++) m += api.weeklyMean[t];
+  return m / cfg.horizon;
+}
+
+/** Decision rule. objective: 'robust' (default), 'total' (min expected cost) or 'cvar' (min CVaR95). */
+function pickBest(results, fillTarget = 0.98, objective = 'robust', tolerance = 0.01) {
+  const feas = results.filter(r => r.fill >= fillTarget);
+  if (!feas.length) return { best: null, feas };
+  if (objective === 'cvar') return { best: feas.reduce((a, b) => (b.cvar95 < a.cvar95 ? b : a)), feas };
+  const minCost = feas.reduce((a, b) => (b.total < a.total ? b : a));
+  if (objective === 'total') return { best: minCost, feas };
+  const near = feas.filter(r => r.total <= minCost.total * (1 + tolerance));
+  return { best: near.reduce((a, b) => (b.cvar95 < a.cvar95 ? b : a)), feas, near };
+}
+// worker.js - runs the simulation-optimisation off the main thread so the page stays responsive.
+
+const strip = r => {
+  const keep = ['alpha', 'ssWk', 'sw', 'total', 'cvar95', 'fill', 'fillP05', 'purchase', 'ordering', 'holding', 'shortage',
+    'avgInvWeeks', 'avgInvKg', 'totalSe', 'chinaShare', 'stockoutWeeks', 'lostKg', 'demand', 'pFillBelow95'];
+  return Object.fromEntries(keep.filter(k => k in r).map(k => [k, r[k]]));
+};
+
+self.onmessage = (ev) => {
+  const { id, type, payload } = ev.data;
+  try {
+    if (type === 'optimise') {
+      // payload: { api, sc, cfg, objective, current: {alpha, ssWk} }
+      const { api, sc, cfg, objective, current } = payload;
+      const { results, rnd } = optimise(api, sc, cfg, f => self.postMessage({ id, type: 'progress', value: f }));
+      const { best, feas } = pickBest(results, cfg.fillTarget, objective);
+      const minCost = pickBest(results, cfg.fillTarget, 'total').best;
+      const minCvar = pickBest(results, cfg.fillTarget, 'cvar').best;
+      const mw = measuredMean(api, cfg);
+      const cur = current ? summarise(simulate(api, sc, cfg, current.alpha, current.ssWk, false, rnd), mw) : null;
+      self.postMessage({ id, type: 'done', value: {
+        grid: results.map(strip), best: best && strip(best), minCost: minCost && strip(minCost), minCvar: minCvar && strip(minCvar),
+        current: cur && { ...strip(cur), alpha: current.alpha, ssWk: current.ssWk, sw: false }, nFeasible: feas.length,
+        nNear: best ? feas.filter(r => r.total <= minCost.total * 1.01).length : 0 } });
+    } else if (type === 'evaluate') {
+      // payload: { api, scenarios: [sc...], cfg, policies: [{label, alpha, ssWk, sw}] }
+      const { api, scenarios, cfg, policies } = payload; const mw = measuredMean(api, cfg); const out = [];
+      scenarios.forEach((sc, i) => {
+        const rnd = drawRandomness(api, sc, cfg);
+        for (const p of policies) out.push({ scenario: sc.name, label: p.label, ...p, ...strip(summarise(simulate(api, sc, cfg, p.alpha, p.ssWk, p.sw, rnd), mw)) });
+        self.postMessage({ id, type: 'progress', value: (i + 1) / scenarios.length });
+      });
+      self.postMessage({ id, type: 'done', value: out });
+    } else if (type === 'sweep') {
+      // payload: { variants: [{label, value, api, sc}], cfg, objective }
+      const { variants, cfg, objective } = payload; const out = [];
+      variants.forEach((v, i) => {
+        const { results } = optimise(v.api, v.sc, cfg);
+        const { best } = pickBest(results, cfg.fillTarget, objective);
+        out.push({ label: v.label, value: v.value, best: best && strip(best) });
+        self.postMessage({ id, type: 'progress', value: (i + 1) / variants.length });
+      });
+      self.postMessage({ id, type: 'done', value: out });
+    }
+  } catch (e) {
+    self.postMessage({ id, type: 'error', value: String(e && e.stack || e) });
+  }
+};
+</script>
+<script type="module">
+// rng.js - seeded random numbers so every run of the app is reproducible.
+// xoshiro128** generator, Box-Muller normals, Marsaglia-Tsang gamma.
+
+function makeRng(seed = 7) {
+  // splitmix32 to expand the seed into 4 state words
+  let s = seed >>> 0;
+  const sm = () => {
+    s = (s + 0x9e3779b9) >>> 0;
+    let z = s;
+    z = Math.imul(z ^ (z >>> 16), 0x85ebca6b) >>> 0;
+    z = Math.imul(z ^ (z >>> 13), 0xc2b2ae35) >>> 0;
+    return (z ^ (z >>> 16)) >>> 0;
+  };
+  let a = sm(), b = sm(), c = sm(), d = sm();
+  const next = () => {
+    const r = Math.imul(rotl(Math.imul(b, 5) >>> 0, 7), 9) >>> 0;
+    const t = (b << 9) >>> 0;
+    c ^= a; d ^= b; b ^= c; a ^= d; c ^= t; d = rotl(d, 11);
+    return r;
+  };
+  const random = () => (next() + 0.5) / 4294967296; // (0,1)
+  let spare = null;
+  const normal = () => {
+    if (spare !== null) { const v = spare; spare = null; return v; }
+    const u1 = random(), u2 = random();
+    const r = Math.sqrt(-2 * Math.log(u1));
+    spare = r * Math.sin(2 * Math.PI * u2);
+    return r * Math.cos(2 * Math.PI * u2);
+  };
+  // Gamma(shape k, scale theta) - Marsaglia & Tsang (2000); boost for k < 1
+  const gamma = (k, theta) => {
+    if (k < 1) return gamma(k + 1, theta) * Math.pow(random(), 1 / k);
+    const dd = k - 1 / 3, cc = 1 / Math.sqrt(9 * dd);
+    for (;;) {
+      let x, v;
+      do { x = normal(); v = 1 + cc * x; } while (v <= 0);
+      v = v * v * v;
+      const u = random();
+      if (u < 1 - 0.0331 * x * x * x * x) return dd * v * theta;
+      if (Math.log(u) < 0.5 * x * x + dd * (1 - v + Math.log(v))) return dd * v * theta;
+    }
+  };
+  return { random, normal, gamma };
+}
+
+function rotl(x, k) { return ((x << k) | (x >>> (32 - k))) >>> 0; }
+// simulation.js - JavaScript port of model/simulation.py (core prescriptive model, CLO 5).
+// Monte Carlo simulation-optimisation of a dual-sourcing + safety-stock policy for one API.
+//
+// Decision variables: alpha (share of each order to the China supplier), ssWk (safety stock in weeks),
+// sw (contingency switch: during a China-route disruption, order from India up to its crisis allocation).
+// Weekly steps, periodic review every R weeks, order-up-to level, lost sales.
+// Objective: min E[annual total cost] s.t. E[fill] >= target; near-ties (within 1%) broken by lowest CVaR95.
+
+const DEFAULT_CFG = { reps: 1000, warmup: 12, horizon: 52, review: 4, seed: 7, fillTarget: 0.98 };
+
+/** Pre-draw all random numbers once so every policy sees identical futures (common random numbers). */
+function drawRandomness(api, sc, cfg) {
+  const rng = makeRng(cfg.seed);
+  const T = cfg.warmup + cfg.horizon, Tx = T + 80, reps = cfg.reps;
+  const mu = api.weeklyMean;
+  const k = 1 / (api.weeklyCv * api.weeklyCv);
+  const demand = new Float64Array(reps * T);
+  for (let r = 0; r < reps; r++)
+    for (let t = 0; t < T; t++) demand[r * T + t] = rng.gamma(k, mu[t] / k);
+  // disruption path: 2-state weekly Markov chain
+  const D = new Uint8Array(reps * Tx);
+  const pEnd = 1 / Math.max(sc.meanDur, 1);
+  for (let r = 0; r < reps; r++) {
+    let on = false;
+    for (let t = 0; t < Tx; t++) {
+      const u1 = rng.random(), u2 = rng.random();
+      const start = !on && u1 < sc.pStart;
+      const stop = on && u2 < pEnd;
+      on = (on || start) && !stop;
+      D[r * Tx + t] = on ? 1 : 0;
+    }
+  }
+  const cumD = new Int32Array(reps * (Tx + 1));
+  for (let r = 0; r < reps; r++) {
+    let c = 0;
+    for (let t = 0; t < Tx; t++) { c += D[r * Tx + t]; cumD[r * (Tx + 1) + t + 1] = c; }
+  }
+  const nRev = Math.floor(T / cfg.review) + 1;
+  const ltc = new Int32Array(reps * nRev), lti = new Int32Array(reps * nRev);
+  for (let i = 0; i < reps * nRev; i++) {
+    ltc[i] = Math.max(api.ltChina[2], Math.round(api.ltChina[0] + api.ltChina[1] * rng.normal()));
+    lti[i] = Math.max(api.ltIndia[2], Math.round(api.ltIndia[0] + api.ltIndia[1] * rng.normal()));
+  }
+  return { demand, D, cumD, ltc, lti, T, Tx, nRev };
+}
+
+/** Simulate one policy over all replications. Returns per-replication arrays (one measured year each). */
+function simulate(api, sc, cfg, alpha, ssWk, sw, rnd) {
+  rnd = rnd || drawRandomness(api, sc, cfg);
+  const { demand, D, cumD, ltc, lti, T, Tx, nRev } = rnd;
+  const R = cfg.review, W = cfg.warmup, reps = cfg.reps, mu = api.weeklyMean;
+  const Leff = alpha * api.ltChina[0] + (1 - alpha) * api.ltIndia[0];
+  const cover = Math.ceil(R + Leff);
+  let meanW = 0; for (let t = 0; t < T; t++) meanW += mu[t]; meanW /= T;
+  const hWeek = api.holdingRate / 52 * api.priceChina;
+  const crisisShare = Math.min(api.indiaCapShare, api.surgeMultiplier * (1 - alpha));
+
+  // order-up-to level and requirement per review week (same for every replication)
+  const Sat = new Float64Array(nRev), reqAt = new Float64Array(nRev);
+  for (let j = 0; j < nRev; j++) {
+    const t = j * R;
+    let s = 0; for (let i = t; i < t + cover; i++) s += mu[i];
+    Sat[j] = s + ssWk * (s / cover);
+    let q = 0; for (let i = t; i < t + R; i++) q += mu[i];
+    reqAt[j] = q;
+  }
+  let init = 0; for (let i = 0; i < cover; i++) init += mu[i];
+  init += ssWk * meanW;
+
+  const out = {
+    total: new Float64Array(reps), purchase: new Float64Array(reps), ordering: new Float64Array(reps),
+    holding: new Float64Array(reps), shortage: new Float64Array(reps), fill: new Float64Array(reps),
+    lostKg: new Float64Array(reps), avgInvKg: new Float64Array(reps), chinaShare: new Float64Array(reps),
+    stockoutWeeks: new Float64Array(reps), demand: new Float64Array(reps),
+  };
+  const arrivals = new Float64Array(Tx + 1);
+
+  for (let r = 0; r < reps; r++) {
+    arrivals.fill(0);
+    let onHand = init, pipeline = 0;
+    let purchase = 0, ordering = 0, holding = 0, lost = 0, demTot = 0, invSum = 0, cKg = 0, iKg = 0, soW = 0;
+    const dBase = r * Tx, cBase = r * (Tx + 1), demBase = r * T;
+    for (let t = 0; t < T; t++) {
+      const measured = t >= W;
+      const rec = arrivals[t]; onHand += rec; pipeline -= rec;
+      if (t % R === 0) {
+        const j = t / R;
+        const Q = Math.max(0, Sat[j] - (onHand + pipeline));
+        const dis = D[dBase + t] === 1;
+        const aT = (dis && sw) ? 0 : alpha;
+        const cap = (dis ? crisisShare : api.indiaCapShare) * reqAt[j];
+        const qi = Math.min((1 - aT) * Q, cap);
+        const qc = Q - qi;
+        // China arrival held for every disrupted week it overlaps (iterate to settle)
+        const L = ltc[r * nRev + j];
+        let arrC = t + L;
+        for (let it = 0; it < 4; it++) {
+          const held = cumD[cBase + Math.min(arrC, Tx)] - cumD[cBase + t];
+          arrC = Math.min(t + L + held, Tx);
+        }
+        const arrI = Math.min(t + lti[r * nRev + j], Tx);
+        arrivals[arrC] += qc; arrivals[arrI] += qi;
+        pipeline += Q;
+        if (measured) {
+          const pc = api.priceChina * (1 + sc.chinaShock * (dis ? 1 : 0));
+          const pi = api.priceIndia * (1 + sc.chinaShock * sc.indiaPassthrough * (dis ? 1 : 0));
+          purchase += qc * pc + qi * pi;
+          ordering += (qc > 1e-9 ? api.orderCostChina : 0) + (qi > 1e-9 ? api.orderCostIndia : 0);
+          cKg += qc; iKg += qi;
+        }
+      }
+      const d = demand[demBase + t];
+      const sold = Math.min(onHand, d), short = d - sold;
+      onHand -= sold;
+      if (measured) {
+        lost += short; demTot += d; holding += onHand * hWeek; invSum += onHand;
+        if (short > 1e-9) soW++;
+      }
+    }
+    const shortage = lost * api.shortageCost;
+    out.purchase[r] = purchase; out.ordering[r] = ordering; out.holding[r] = holding; out.shortage[r] = shortage;
+    out.total[r] = purchase + ordering + holding + shortage;
+    out.fill[r] = 1 - lost / demTot; out.lostKg[r] = lost; out.avgInvKg[r] = invSum / cfg.horizon;
+    out.chinaShare[r] = cKg / Math.max(cKg + iKg, 1e-9); out.stockoutWeeks[r] = soW; out.demand[r] = demTot;
+  }
+  return out;
+}
+
+const mean = a => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i]; return s / a.length; };
+
+function cvar(x, q = 0.95) {
+  const s = Float64Array.from(x).sort();
+  const k = Math.floor(q * s.length);
+  let t = 0; for (let i = k; i < s.length; i++) t += s[i];
+  return t / (s.length - k);
+}
+
+function percentile(x, p) {
+  const s = Float64Array.from(x).sort(); const pos = (s.length - 1) * p / 100;
+  const lo = Math.floor(pos), hi = Math.ceil(pos);
+  return s[lo] + (s[hi] - s[lo]) * (pos - lo);
+}
+
+function summarise(res, meanW) {
+  const s = {};
+  for (const k of Object.keys(res)) s[k] = mean(res[k]);
+  let v = 0; const m = s.total; for (let i = 0; i < res.total.length; i++) v += (res.total[i] - m) ** 2;
+  s.totalSe = Math.sqrt(v / (res.total.length - 1)) / Math.sqrt(res.total.length);
+  s.cvar95 = cvar(res.total);
+  s.fillP05 = percentile(res.fill, 5);
+  s.pFillBelow95 = mean(res.fill.map(f => (f < 0.95 ? 1 : 0)));
+  if (meanW) s.avgInvWeeks = s.avgInvKg / meanW;
+  return s;
+}
+
+const ALPHAS = Array.from({ length: 11 }, (_, i) => Math.round(i * 10) / 100);
+const SS_GRID = Array.from({ length: 17 }, (_, i) => i);
+
+/** Exhaustive simulation-optimisation over the policy grid (CRN). onProgress(fraction) optional. */
+function optimise(api, sc, cfg, onProgress, alphas = ALPHAS, ssGrid = SS_GRID, switches = [false, true]) {
+  const rnd = drawRandomness(api, sc, cfg);
+  const meanW = measuredMean(api, cfg);
+  const out = []; const n = alphas.length * ssGrid.length * switches.length; let done = 0;
+  for (const sw of switches) for (const a of alphas) for (const ss of ssGrid) {
+    const s = summarise(simulate(api, sc, cfg, a, ss, sw, rnd), meanW);
+    out.push({ ...s, alpha: a, ssWk: ss, sw });
+    done++; if (onProgress && done % 17 === 0) onProgress(done / n);
+  }
+  return { results: out, rnd };
+}
+
+function measuredMean(api, cfg) {
+  let m = 0; for (let t = cfg.warmup; t < cfg.warmup + cfg.horizon; t++) m += api.weeklyMean[t];
+  return m / cfg.horizon;
+}
+
+/** Decision rule. objective: 'robust' (default), 'total' (min expected cost) or 'cvar' (min CVaR95). */
+function pickBest(results, fillTarget = 0.98, objective = 'robust', tolerance = 0.01) {
+  const feas = results.filter(r => r.fill >= fillTarget);
+  if (!feas.length) return { best: null, feas };
+  if (objective === 'cvar') return { best: feas.reduce((a, b) => (b.cvar95 < a.cvar95 ? b : a)), feas };
+  const minCost = feas.reduce((a, b) => (b.total < a.total ? b : a));
+  if (objective === 'total') return { best: minCost, feas };
+  const near = feas.filter(r => r.total <= minCost.total * (1 + tolerance));
+  return { best: near.reduce((a, b) => (b.cvar95 < a.cvar95 ? b : a)), feas, near };
+}
+// forecast.js - demand forecasting module (CLO 4), JavaScript port of model/forecasting.py.
+// Models: Naive, Seasonal naive, Holt-Winters (damped additive trend, multiplicative season),
+// SARIMA(0,1,1)(0,1,1)12 "airline" model fitted by conditional sum of squares.
+// Validation: rolling-origin MAPE for 1-3 months ahead (primary) + 12-month holdout.
+
+const M = 12;
+const MODELS = ['Naive', 'Seasonal naive', 'Holt-Winters', 'SARIMA'];
+
+// ---------------------------------------------------------------- utilities
+const sum = a => a.reduce((s, v) => s + v, 0);
+const avg = a => sum(a) / a.length;
+const sd = a => { const m = avg(a); return Math.sqrt(sum(a.map(v => (v - m) ** 2)) / (a.length - 1)); };
+const sigmoid = x => 1 / (1 + Math.exp(-x));
+const logit = p => Math.log(p / (1 - p));
+
+/** Nelder-Mead minimiser (unconstrained). */
+function nelderMead(f, x0, { iters = 400, step = 0.5, tol = 1e-9 } = {}) {
+  const n = x0.length;
+  let pts = [x0.slice()];
+  for (let i = 0; i < n; i++) { const p = x0.slice(); p[i] += step; pts.push(p); }
+  let vals = pts.map(f);
+  for (let k = 0; k < iters; k++) {
+    const idx = vals.map((v, i) => i).sort((a, b) => vals[a] - vals[b]);
+    pts = idx.map(i => pts[i]); vals = idx.map(i => vals[i]);
+    if (Math.abs(vals[n] - vals[0]) <= tol * (Math.abs(vals[0]) + 1e-12)) break;
+    const c = new Array(n).fill(0);
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) c[j] += pts[i][j] / n;
+    const xr = c.map((v, j) => v + (v - pts[n][j])); const fr = f(xr);
+    if (fr < vals[0]) {
+      const xe = c.map((v, j) => v + 2 * (v - pts[n][j])); const fe = f(xe);
+      if (fe < fr) { pts[n] = xe; vals[n] = fe; } else { pts[n] = xr; vals[n] = fr; }
+    } else if (fr < vals[n - 1]) { pts[n] = xr; vals[n] = fr; }
+    else {
+      const xc = c.map((v, j) => v + 0.5 * (pts[n][j] - v)); const fc = f(xc);
+      if (fc < vals[n]) { pts[n] = xc; vals[n] = fc; }
+      else for (let i = 1; i <= n; i++) { pts[i] = pts[i].map((v, j) => pts[0][j] + 0.5 * (v - pts[0][j])); vals[i] = f(pts[i]); }
+    }
+  }
+  return { x: pts[0], f: vals[0] };
+}
+
+// ---------------------------------------------------------------- Holt-Winters
+function hwRun(y, p, init) {
+  const { a, b, g, phi } = p;
+  let l = init.l, tr = init.b; const s = init.s.slice();
+  const fitted = new Array(y.length);
+  for (let t = 0; t < y.length; t++) {
+    const si = s[t % M];
+    const base = l + phi * tr;
+    fitted[t] = base * si;
+    const lNew = a * (y[t] / si) + (1 - a) * base;
+    tr = b * (lNew - l) + (1 - b) * phi * tr;
+    s[t % M] = g * (y[t] / base) + (1 - g) * si;
+    l = lNew;
+  }
+  return { fitted, state: { l, b: tr, s, n: y.length } };
+}
+
+function hwInit(y) {
+  const l = avg(y.slice(0, M));
+  const b = (avg(y.slice(M, 2 * M)) - l) / M;
+  const s = y.slice(0, M).map(v => v / l);
+  return { l, b, s };
+}
+
+// smoothing parameters mapped into statsmodels-like bounds: alpha in (0,1), beta in (0,alpha), gamma in (0,1-alpha), phi in (0.8,0.995)
+const hwParams = x => { const a = sigmoid(x[0]); return { a, b: a * sigmoid(x[1]), g: (1 - a) * sigmoid(x[2]), phi: 0.8 + 0.195 * sigmoid(x[3]) }; };
+
+/** Fit Holt-Winters by least squares, estimating smoothing parameters AND initial states (as statsmodels does). */
+function fitHoltWinters(y) {
+  const h0 = hwInit(y);
+  const unpack = x => {
+    const sRaw = x.slice(6, 6 + M).map(Math.exp); const m = avg(sRaw);
+    return { p: hwParams(x), init: { l: h0.l * Math.exp(x[4]), b: h0.b + x[5] * h0.l * 0.01, s: sRaw.map(v => v / m) } };
+  };
+  const obj = x => { const { p, init } = unpack(x); const { fitted } = hwRun(y, p, init); let e = 0; for (let t = 0; t < y.length; t++) e += (y[t] - fitted[t]) ** 2; return e; };
+  let x = [logit(0.3), logit(0.2), logit(0.2), 0, 0, 0, ...h0.s.map(Math.log)];
+  // two-stage search: smoothing parameters first, then everything; restart once to escape stalls
+  for (let pass = 0; pass < 3; pass++) x = nelderMead(obj, x, { iters: pass === 0 ? 800 : 3000, step: pass === 0 ? 0.5 : 0.1, tol: 1e-12 }).x;
+  const { p, init } = unpack(x);
+  const run = hwRun(y, p, init);
+  const resid = y.map((v, t) => v - run.fitted[t]).slice(M + 1);
+  return { model: 'Holt-Winters', params: p, init, ...run, resid };
+}
+
+function hwStep(state, p, h) {
+  let f = 0, damp = 0;
+  for (let i = 1; i <= h; i++) damp += p.phi ** i;
+  f = (state.l + damp * state.b) * state.s[(state.n + h - 1) % M];
+  return f;
+}
+
+function hwForecast(fit, h) { return Array.from({ length: h }, (_, i) => hwStep(fit.state, fit.params, i + 1)); }
+
+/** Simulation-based prediction intervals: paths with additive normal errors (sigma from residuals). */
+function hwIntervals(fit, h, paths = 1000, seed = 1) {
+  const rng = makeRng(seed); const sig = sd(fit.resid); const p = fit.params;
+  const sims = Array.from({ length: h }, () => new Float64Array(paths));
+  for (let k = 0; k < paths; k++) {
+    let l = fit.state.l, tr = fit.state.b; const s = fit.state.s.slice(); let n = fit.state.n;
+    for (let i = 0; i < h; i++) {
+      const si = s[n % M], base = l + p.phi * tr;
+      const yv = base * si + sig * rng.normal();
+      sims[i][k] = yv;
+      const lNew = p.a * (yv / si) + (1 - p.a) * base;
+      tr = p.b * (lNew - l) + (1 - p.b) * p.phi * tr;
+      s[n % M] = p.g * (yv / base) + (1 - p.g) * si;
+      l = lNew; n++;
+    }
+  }
+  return sims.map(col => { const c = Array.from(col).sort((a, b) => a - b); const q = pr => c[Math.min(c.length - 1, Math.floor(pr * c.length))]; return { lo80: q(0.10), hi80: q(0.90), lo95: q(0.025), hi95: q(0.975) }; });
+}
+
+// ---------------------------------------------------------------- SARIMA airline model
+function airlineResid(w, th, Th) {
+  const e = new Array(w.length).fill(0);
+  for (let t = 0; t < w.length; t++) {
+    e[t] = w[t] + th * (t >= 1 ? e[t - 1] : 0) + Th * (t >= M ? e[t - M] : 0) - th * Th * (t >= M + 1 ? e[t - M - 1] : 0);
+  }
+  return e;
+}
+
+function fitSarima(y) {
+  const w = []; for (let t = M + 1; t < y.length; t++) w.push(y[t] - y[t - 1] - y[t - M] + y[t - M - 1]);
+  const obj = x => { const e = airlineResid(w, Math.tanh(x[0]) * 0.99, Math.tanh(x[1]) * 0.99); return sum(e.map(v => v * v)); };
+  const { x } = nelderMead(obj, [0.3, 0.3], { iters: 300 });
+  const th = Math.tanh(x[0]) * 0.99, Th = Math.tanh(x[1]) * 0.99;
+  const e = airlineResid(w, th, Th);
+  const sigma2 = sum(e.map(v => v * v)) / Math.max(1, e.length - 2);
+  return { model: 'SARIMA', th, Th, y: y.slice(), e, sigma2, resid: e };
+}
+
+function sarimaForecast(fit, h) {
+  const y = fit.y.slice(), e = fit.e.slice(); const off = M + 1; // e index i <-> y index i + off
+  const eAt = t => (t - off >= 0 && t - off < e.length ? e[t - off] : 0);
+  const n = y.length; const out = [];
+  for (let k = 1; k <= h; k++) {
+    const t = n + k - 1;
+    const wHat = -fit.th * eAt(t - 1) - fit.Th * eAt(t - M) + fit.th * fit.Th * eAt(t - M - 1); // future e = 0
+    const yv = y[t - 1] + y[t - M] - y[t - M - 1] + wHat;
+    y.push(yv); out.push(yv);
+  }
+  return out;
+}
+
+function sarimaIntervals(fit, h) {
+  // psi weights of (1-B)(1-B^12) y = (1 - th B)(1 - Th B^12) e
+  const phi = { 1: 1, 12: 1, 13: -1 }, ma = { 1: -fit.th, 12: -fit.Th, 13: fit.th * fit.Th };
+  const psi = [1];
+  for (let j = 1; j < h; j++) {
+    let v = ma[j] || 0;
+    for (const i of [1, 12, 13]) if (j - i >= 0) v += phi[i] * psi[j - i];
+    psi.push(v);
+  }
+  const fc = sarimaForecast(fit, h); let acc = 0;
+  return fc.map((f, i) => { acc += psi[i] ** 2; const s = Math.sqrt(fit.sigma2 * acc); return { lo80: f - 1.2816 * s, hi80: f + 1.2816 * s, lo95: f - 1.96 * s, hi95: f + 1.96 * s }; });
+}
+
+// ---------------------------------------------------------------- generic interface
+function forecastWith(model, y, h) {
+  if (model === 'Naive') return new Array(h).fill(y[y.length - 1]);
+  if (model === 'Seasonal naive') return Array.from({ length: h }, (_, i) => y[y.length - M + (i % M)]);
+  if (model === 'Holt-Winters') return hwForecast(fitHoltWinters(y), h);
+  return sarimaForecast(fitSarima(y), h);
+}
+
+function metrics(actual, fc, train) {
+  const err = actual.map((a, i) => a - fc[i]);
+  const mape = avg(err.map((e, i) => Math.abs(e) / actual[i])) * 100;
+  const rmse = Math.sqrt(avg(err.map(e => e * e)));
+  const scale = avg(train.slice(M).map((v, i) => Math.abs(v - train[i])));
+  const mase = avg(err.map(Math.abs)) / scale;
+  const bias = (avg(fc) - avg(actual)) / avg(actual) * 100;
+  return { mape, rmse, mase, bias };
+}
+
+/** Rolling-origin MAPE (h = 1..3) for every model; origins from max(24, n - 18) to n - 3. */
+function rollingOrigin(y, h = 3) {
+  const first = Math.max(24, y.length - 18); const errs = Object.fromEntries(MODELS.map(m => [m, []]));
+  for (let t0 = first; t0 <= y.length - h; t0++) {
+    const tr = y.slice(0, t0), te = y.slice(t0, t0 + h);
+    for (const m of MODELS) { const f = forecastWith(m, tr, h); te.forEach((a, i) => errs[m].push(Math.abs(a - f[i]) / a * 100)); }
+  }
+  return { mape: Object.fromEntries(MODELS.map(m => [m, avg(errs[m])])), origins: y.length - h - first + 1 };
+}
+
+function residualCv(model, y) {
+  let r;
+  if (model === 'Naive') r = y.slice(1).map((v, i) => v - y[i]);
+  else if (model === 'Seasonal naive') r = y.slice(M).map((v, i) => v - y[i]);
+  else if (model === 'Holt-Winters') r = fitHoltWinters(y).resid;
+  else r = fitSarima(y).resid;
+  return sd(r) / avg(y);
+}
+
+/** Full forecasting run for one series: validation table, selected model, 12-month forecast with intervals. */
+function runForecast(y, months, H = 12) {
+  const train = y.slice(0, -H), test = y.slice(-H);
+  const ro = rollingOrigin(y);
+  const table = MODELS.map(m => ({ model: m, rolling: ro.mape[m], ...metrics(test, forecastWith(m, train, H), train) }));
+  const best = table.reduce((a, b) => (b.rolling < a.rolling ? b : a));
+  let point, bands;
+  if (best.model === 'Holt-Winters') { const f = fitHoltWinters(y); point = hwForecast(f, H); bands = hwIntervals(f, H); }
+  else if (best.model === 'SARIMA') { const f = fitSarima(y); point = sarimaForecast(f, H); bands = sarimaIntervals(f, H); }
+  else {
+    point = forecastWith(best.model, y, H);
+    const r = best.model === 'Naive' ? y.slice(1).map((v, i) => v - y[i]) : y.slice(M).map((v, i) => v - y[i]);
+    const s = sd(r);
+    bands = point.map((f, i) => { const k = best.model === 'Naive' ? Math.sqrt(i + 1) : Math.sqrt(Math.floor(i / M) + 1); return { lo80: f - 1.2816 * s * k, hi80: f + 1.2816 * s * k, lo95: f - 1.96 * s * k, hi95: f + 1.96 * s * k }; });
+  }
+  const futMonths = nextMonths(months[months.length - 1], H);
+  return {
+    table, selected: best.model, origins: ro.origins, residualCv: residualCv(best.model, y),
+    future: futMonths.map((m, i) => ({ month: m, forecast: point[i], ...bands[i] })),
+  };
+}
+
+function nextMonths(last, h) {
+  let [yy, mm] = last.split('-').map(Number); const out = [];
+  for (let i = 0; i < h; i++) { mm++; if (mm > 12) { mm = 1; yy++; } out.push(`${yy}-${String(mm).padStart(2, '0')}`); }
+  return out;
+}
+
+/** Monthly forecast -> weekly means (each calendar week takes its month's daily rate x 7), as in inputs.py. */
+function weeklyProfile(future, nWeeks = 96) {
+  const byMoy = {}; for (const f of future) { const [y, m] = f.month.split('-').map(Number); byMoy[m] = { v: f.forecast, days: new Date(Date.UTC(y, m, 0)).getUTCDate() }; }
+  const [y0, m0] = future[0].month.split('-').map(Number);
+  const start = Date.UTC(y0, m0 - 1, 1); const out = new Float64Array(nWeeks);
+  for (let i = 0; i < nWeeks; i++) { const d = new Date(start + (7 * i + 3) * 864e5); const e = byMoy[d.getUTCMonth() + 1]; out[i] = e.v / e.days * 7; }
+  return out;
+}
+// csv.js - CSV parsing, schema validation and download helpers.
+
+function parseCsv(text) {
+  const rows = []; let row = [], field = '', q = false;
+  text = text.replace(/^﻿/, '');
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
+      else if (c === '"') q = false; else field += c;
+    } else if (c === '"') q = true;
+    else if (c === ',') { row.push(field); field = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(field); field = ''; if (row.some(v => v.trim() !== '')) rows.push(row); row = []; }
+    else field += c;
+  }
+  if (field !== '' || row.length) { row.push(field); if (row.some(v => v.trim() !== '')) rows.push(row); }
+  if (!rows.length) return { header: [], records: [] };
+  const header = rows[0].map(h => h.trim());
+  return { header, records: rows.slice(1).map((r, idx) => ({ __line: idx + 2, ...Object.fromEntries(header.map((h, i) => [h, (r[i] ?? '').trim()])) })) };
+}
+
+function toCsv(rows, columns) {
+  const esc = v => { const s = v === null || v === undefined ? '' : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  return [columns.map(c => esc(c.label || c.key)).join(','), ...rows.map(r => columns.map(c => esc(typeof c.get === 'function' ? c.get(r) : r[c.key])).join(','))].join('\n');
+}
+
+function download(filename, text, mime = 'text/csv') {
+  const blob = new Blob([text], { type: `${mime};charset=utf-8` });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+
+// ----------------------------------------------------------------- schemas
+// type: 'month' | 'text' | 'num' ; min/max inclusive; gt0 = strictly positive
+const SCHEMAS = {
+  demand_monthly: [
+    { key: 'month', type: 'month' }, { key: 'api', type: 'text' }, { key: 'demand_kg', type: 'num', gt0: true, unit: 'kg / month' }],
+  api_params: [
+    { key: 'api', type: 'text' },
+    { key: 'china_price_inr_kg', type: 'num', gt0: true, unit: '₹/kg' }, { key: 'india_price_inr_kg', type: 'num', gt0: true, unit: '₹/kg' },
+    { key: 'shortage_cost_inr_kg', type: 'num', gt0: true, unit: '₹/kg' }, { key: 'holding_rate_pa', type: 'num', min: 0, max: 1, unit: 'share / yr' },
+    { key: 'current_china_share', type: 'num', min: 0, max: 1, unit: 'share' }, { key: 'current_safety_weeks', type: 'num', min: 0, max: 16, unit: 'weeks' }],
+  supplier_params: [
+    { key: 'supplier', type: 'text' }, { key: 'origin', type: 'text', oneOf: ['China', 'India'] },
+    { key: 'lt_mean_weeks', type: 'num', min: 1, max: 26, unit: 'weeks' }, { key: 'lt_sd_weeks', type: 'num', min: 0, max: 10, unit: 'weeks' },
+    { key: 'lt_min_weeks', type: 'num', min: 1, max: 26, unit: 'weeks' }, { key: 'ordering_cost_inr', type: 'num', min: 0, unit: '₹ / order' },
+    { key: 'max_share_of_requirement', type: 'num', min: 0, max: 1, unit: 'share' }],
+  scenarios: [
+    { key: 'scenario', type: 'text' }, { key: 'p_start_weekly', type: 'num', min: 0, max: 0.2, unit: 'probability' },
+    { key: 'mean_duration_weeks', type: 'num', min: 1, max: 52, unit: 'weeks' }, { key: 'china_price_shock', type: 'num', min: 0, max: 5, unit: 'share' },
+    { key: 'india_passthrough', type: 'num', min: 0, max: 1, unit: 'share' }],
+};
+
+/** Validate one parsed file. Returns { ok, errors:[], rows } with typed values. */
+function validate(name, parsed) {
+  const schema = SCHEMAS[name]; const errors = [];
+  const missing = schema.filter(c => !parsed.header.includes(c.key)).map(c => c.key);
+  if (missing.length) return { ok: false, errors: [`${name}.csv: missing column(s) ${missing.join(', ')}. Expected: ${schema.map(c => c.key).join(', ')}.`], rows: [] };
+  if (!parsed.records.length) return { ok: false, errors: [`${name}.csv: no data rows.`], rows: [] };
+  const rows = parsed.records.map(r => {
+    const o = {};
+    for (const c of schema) {
+      const v = r[c.key];
+      if (c.type === 'num') {
+        const n = Number(v);
+        if (v === '' || !Number.isFinite(n)) { errors.push(`${name}.csv line ${r.__line}: "${c.key}" must be a number (got "${v}").`); continue; }
+        if (c.gt0 && !(n > 0)) errors.push(`${name}.csv line ${r.__line}: "${c.key}" must be greater than 0 (got ${n}).`);
+        if (c.min !== undefined && n < c.min) errors.push(`${name}.csv line ${r.__line}: "${c.key}" must be at least ${c.min} (got ${n}).`);
+        if (c.max !== undefined && n > c.max) errors.push(`${name}.csv line ${r.__line}: "${c.key}" must be at most ${c.max} (got ${n}).`);
+        o[c.key] = n;
+      } else if (c.type === 'month') {
+        if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(v)) errors.push(`${name}.csv line ${r.__line}: "month" must look like 2024-07 (got "${v}").`);
+        o[c.key] = v;
+      } else {
+        if (!v) errors.push(`${name}.csv line ${r.__line}: "${c.key}" is empty.`);
+        if (c.oneOf && v && !c.oneOf.includes(v)) errors.push(`${name}.csv line ${r.__line}: "${c.key}" must be one of ${c.oneOf.join(' / ')} (got "${v}").`);
+        o[c.key] = v;
+      }
+    }
+    return o;
+  });
+  return { ok: errors.length === 0, errors: errors.slice(0, 12).concat(errors.length > 12 ? [`... and ${errors.length - 12} more.`] : []), rows };
+}
+
+/** Cross-file checks: months consecutive, >= 36 per API, names match, one China + one India supplier. */
+function crossValidate(t) {
+  const errors = []; const series = {};
+  for (const r of t.demand_monthly) (series[r.api] ||= []).push(r);
+  for (const [api, rs] of Object.entries(series)) {
+    rs.sort((a, b) => a.month.localeCompare(b.month));
+    if (rs.length < 36) errors.push(`demand_monthly.csv: "${api}" has ${rs.length} months; at least 36 are needed for forecasting.`);
+    for (let i = 1; i < rs.length; i++) {
+      const [y0, m0] = rs[i - 1].month.split('-').map(Number), [y1, m1] = rs[i].month.split('-').map(Number);
+      if ((y1 * 12 + m1) - (y0 * 12 + m0) !== 1) { errors.push(`demand_monthly.csv: "${api}" months are not consecutive between ${rs[i - 1].month} and ${rs[i].month}.`); break; }
+    }
+  }
+  const apiNames = new Set(t.api_params.map(r => r.api));
+  for (const a of Object.keys(series)) if (!apiNames.has(a)) errors.push(`api_params.csv: no row for "${a}", which appears in demand_monthly.csv.`);
+  for (const a of apiNames) if (!series[a]) errors.push(`demand_monthly.csv: no demand history for "${a}", which appears in api_params.csv.`);
+  const origins = t.supplier_params.map(r => r.origin);
+  if (origins.filter(o => o === 'China').length !== 1 || origins.filter(o => o === 'India').length !== 1) errors.push('supplier_params.csv: needs exactly one row with origin China and one with origin India.');
+  for (const s of t.supplier_params) if (s.lt_min_weeks > s.lt_mean_weeks) errors.push(`supplier_params.csv: ${s.supplier} minimum lead time is above its mean.`);
+  return errors;
+}
+// charts.js - small SVG chart helpers (no external libraries). Each returns an SVG string.
+// Colours come from CSS variables defined in styles.css so light/dark stay consistent.
+
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const fmt = (v, d = 1) => (v === null || v === undefined || !Number.isFinite(v) ? '–' : v.toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d }));
+const lakh = v => fmt(v / 1e5, 1);
+const niceTicks = (lo, hi, n = 5) => {
+  const span = hi - lo || 1; const step0 = span / n; const mag = 10 ** Math.floor(Math.log10(step0));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= step0) || mag * 10;
+  const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10)); return out;
+};
+
+/** History (grey line) + forecast (accent points with 95% whiskers). */
+function forecastChart({ hist, fut, title }) {
+  const W = 760, H = 320, x0 = 64, x1 = 740, y0 = 40, yb = 280; const n = hist.length + fut.length;
+  const all = [...hist.map(h => h.v), ...fut.map(f => f.hi95), ...fut.map(f => f.lo95)];
+  let lo = Math.min(...all), hi = Math.max(...all); const pad = (hi - lo) * 0.08; lo = Math.max(0, lo - pad); hi += pad;
+  const X = i => x0 + i * (x1 - x0) / (n - 1), Y = v => yb - (v - lo) / (hi - lo) * (yb - y0);
+  const ticks = niceTicks(lo, hi, 4);
+  const hp = hist.map((h, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(h.v).toFixed(1)}`).join('');
+  const fp = `M${X(hist.length - 1)} ${Y(hist.at(-1).v)}` + fut.map((f, i) => `L${X(hist.length + i).toFixed(1)} ${Y(f.forecast).toFixed(1)}`).join('');
+  const split = (X(hist.length - 1) + X(hist.length)) / 2;
+  const years = [...hist, ...fut.map(f => ({ m: f.month }))].map((r, i) => ({ r, i })).filter(o => (o.r.m || o.r.month).endsWith('-01'));
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title || 'Demand history and forecast')}" class="chart">
+  ${ticks.map(t => `<line x1="${x0}" x2="${x1}" y1="${Y(t)}" y2="${Y(t)}" class="grid"/><text x="${x0 - 8}" y="${Y(t) + 4}" text-anchor="end" class="tick">${(t / 1000).toLocaleString('en-IN', { maximumFractionDigits: 1 })}k</text>`).join('')}
+  <text x="4" y="${y0 - 14}" class="tick">kg / month</text>
+  <line x1="${x0}" x2="${x1}" y1="${yb}" y2="${yb}" class="axis"/>
+  ${years.map(o => `<text x="${X(o.i)}" y="${yb + 18}" text-anchor="middle" class="tick">${(o.r.m || o.r.month).slice(0, 4)}</text>`).join('')}
+  <line x1="${split}" x2="${split}" y1="${y0}" y2="${yb}" class="ref"/><text x="${split + 6}" y="${y0 + 10}" class="tick">forecast</text><text x="${split - 6}" y="${y0 + 10}" text-anchor="end" class="tick">actual</text>
+  <path d="${hp}" class="line-muted"/>
+  ${hist.map((h, i) => `<circle cx="${X(i)}" cy="${Y(h.v)}" r="6" fill="transparent"><title>${h.m}: ${fmt(h.v, 0)} kg (actual)</title></circle>`).join('')}
+  <path d="${fp}" class="line-accent"/>
+  ${fut.map((f, i) => `<line x1="${X(hist.length + i)}" x2="${X(hist.length + i)}" y1="${Y(f.lo95)}" y2="${Y(f.hi95)}" class="whisker"/><circle cx="${X(hist.length + i)}" cy="${Y(f.forecast)}" r="4" class="dot-accent"><title>${f.month}: ${fmt(f.forecast, 0)} kg forecast (95% interval ${fmt(f.lo95, 0)} to ${fmt(f.hi95, 0)})</title></circle>`).join('')}
+</svg>`;
+}
+
+/** Cost-risk scatter of feasible policies; current, lowest-cost and recommended marked. */
+function frontierChart({ points, rec, minCost, current }) {
+  const W = 760, H = 360, x0 = 76, x1 = 740, y0 = 24, yb = 300;
+  const xs = [...points.map(p => p.total), rec.total, current ? current.total : rec.total].map(v => v / 1e5);
+  const ys = [...points.map(p => p.cvar95), rec.cvar95, current ? current.cvar95 : rec.cvar95].map(v => v / 1e5);
+  let xl = Math.min(...xs), xh = Math.max(...xs), yl = Math.min(...ys), yh = Math.max(...ys);
+  const px = (xh - xl) * 0.06 || 1, py = (yh - yl) * 0.08 || 1; xl -= px; xh += px; yl -= py * 2; yh += py;
+  const X = v => x0 + (v / 1e5 - xl) / (xh - xl) * (x1 - x0), Y = v => yb - (v / 1e5 - yl) / (yh - yl) * (yb - y0);
+  const xt = niceTicks(xl, xh, 5), yt = niceTicks(yl, yh, 5);
+  const pol = p => `${Math.round(p.alpha * 100)}% China, ${p.ssWk} wks${p.sw ? ', switch' : ''}`;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Expected cost versus worst-5% cost for every feasible policy" class="chart">
+  ${yt.map(t => `<line x1="${x0}" x2="${x1}" y1="${yb - (t - yl) / (yh - yl) * (yb - y0)}" y2="${yb - (t - yl) / (yh - yl) * (yb - y0)}" class="grid"/><text x="${x0 - 8}" y="${yb - (t - yl) / (yh - yl) * (yb - y0) + 4}" text-anchor="end" class="tick">${fmt(t, 0)}</text>`).join('')}
+  <line x1="${x0}" x2="${x1}" y1="${yb}" y2="${yb}" class="axis"/>
+  ${xt.map(t => `<text x="${x0 + (t - xl) / (xh - xl) * (x1 - x0)}" y="${yb + 18}" text-anchor="middle" class="tick">${fmt(t, 0)}</text>`).join('')}
+  <text x="${x1}" y="${yb + 40}" text-anchor="end" class="tick">Expected annual cost, ₹ lakh →</text>
+  <text x="4" y="${y0 - 6}" class="tick">CVaR95, ₹ lakh ↑</text>
+  ${points.map(p => `<circle cx="${X(p.total)}" cy="${Y(p.cvar95)}" r="3.5" class="dot-muted"><title>${pol(p)}: cost ₹${lakh(p.total)} lakh, CVaR95 ₹${lakh(p.cvar95)} lakh, fill ${fmt(p.fill * 100, 2)}%</title></circle>`).join('')}
+  ${current ? `<circle cx="${X(current.total)}" cy="${Y(current.cvar95)}" r="7" class="ring-bad"><title>Current ${pol(current)}: ₹${lakh(current.total)} lakh, CVaR95 ₹${lakh(current.cvar95)} lakh, fill ${fmt(current.fill * 100, 2)}%</title></circle>
+  <text x="${X(current.total) - 12}" y="${Y(current.cvar95) + 4}" text-anchor="end" class="label">Current${current.fill < 0.98 ? ' (misses target)' : ''}</text>` : ''}
+  ${minCost && (minCost.alpha !== rec.alpha || minCost.ssWk !== rec.ssWk || minCost.sw !== rec.sw) ? `<circle cx="${X(minCost.total)}" cy="${Y(minCost.cvar95)}" r="6" class="ring-ink"><title>Lowest average cost: ${pol(minCost)}</title></circle>` : ''}
+  <circle cx="${X(rec.total)}" cy="${Y(rec.cvar95)}" r="7" class="dot-accent"><title>Recommended: ${pol(rec)}</title></circle>
+  <line x1="${X(rec.total)}" x2="${X(rec.total)}" y1="${Y(rec.cvar95) + 9}" y2="${yb - 6}" class="leader"/>
+  <text x="${X(rec.total) + 6}" y="${yb - 8}" class="label strong">Recommended</text>
+</svg>`;
+}
+
+/** Heatmap of expected cost by China share (x) and safety stock (y); infeasible cells hatched. */
+function heatmap({ grid, alphas, ssGrid, fillTarget, rec }) {
+  const W = 760, cw = 52, ch = 15, x0 = 92, y0 = 30; const H = y0 + ssGrid.length * ch + 52;
+  const feas = grid.filter(g => g.fill >= fillTarget); const lo = Math.min(...feas.map(g => g.total)), hi = Math.max(...feas.map(g => g.total));
+  const cell = (a, s) => grid.find(g => g.alpha === a && g.ssWk === s);
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Expected cost by China share and safety stock" class="chart">
+  <defs><pattern id="hatch" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><line x1="0" y1="0" x2="0" y2="6" class="hatch"/></pattern></defs>
+  ${ssGrid.map((s, j) => `<text x="${x0 - 8}" y="${y0 + (ssGrid.length - 1 - j) * ch + ch * 0.72}" text-anchor="end" class="tick small">${s}</text>`).join('')}
+  <text x="${x0 - 8}" y="${y0 - 10}" text-anchor="end" class="tick">buffer, wks</text>
+  ${alphas.map((a, i) => `<text x="${x0 + i * cw + cw / 2}" y="${y0 + ssGrid.length * ch + 16}" text-anchor="middle" class="tick small">${Math.round(a * 100)}%</text>`).join('')}
+  <text x="${x0 + alphas.length * cw}" y="${y0 + ssGrid.length * ch + 36}" text-anchor="end" class="tick">China share of orders →</text>
+  ${alphas.map((a, i) => ssGrid.map((s, j) => {
+    const g = cell(a, s); if (!g) return '';
+    const ok = g.fill >= fillTarget; const t = ok ? (g.total - lo) / Math.max(hi - lo, 1) : 0;
+    const isRec = rec && rec.alpha === a && rec.ssWk === s;
+    return `<rect x="${x0 + i * cw}" y="${y0 + (ssGrid.length - 1 - j) * ch}" width="${cw - 2}" height="${ch - 2}" rx="2" class="${ok ? 'heat' : 'heat-off'}${isRec ? ' heat-rec' : ''}" ${ok ? `style="fill-opacity:${(0.92 - 0.82 * Math.sqrt(t)).toFixed(3)}"` : 'fill="url(#hatch)"'}><title>${Math.round(a * 100)}% China, ${s} wks: ₹${lakh(g.total)} lakh, fill ${fmt(g.fill * 100, 2)}%${ok ? '' : ' (misses target)'}</title></rect>`;
+  }).join('')).join('')}
+</svg>`;
+}
+
+/** Grouped signed bars about zero (positive = good / saving). */
+function signedBars({ groups, unit = '₹ lakh' }) {
+  const W = 760, H = 300, x0 = 56, x1 = 740, y0 = 20, yb = 240;
+  const vals = groups.flatMap(g => g.bars.map(b => b.value)); let lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
+  const pad = (hi - lo) * 0.12 || 1; lo -= lo < 0 ? pad : 0; hi += pad;
+  const Y = v => yb - (v - lo) / (hi - lo) * (yb - y0); const gw = (x1 - x0) / groups.length; const nb = groups[0].bars.length, bw = Math.min(34, gw / (nb + 1.5)), gap = 8;
+  const ticks = niceTicks(lo, hi, 5);
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Saving versus current policy by scenario" class="chart">
+  ${ticks.map(t => `<line x1="${x0}" x2="${x1}" y1="${Y(t)}" y2="${Y(t)}" class="${t === 0 ? 'axis' : 'grid'}"/><text x="${x0 - 8}" y="${Y(t) + 4}" text-anchor="end" class="tick">${fmt(t, 0)}</text>`).join('')}
+  <text x="4" y="${y0 - 6}" class="tick">${unit}</text>
+  ${groups.map((g, gi) => { const gx = x0 + gi * gw + gw / 2 - (nb * bw + (nb - 1) * gap) / 2; return g.bars.map((b, bi) => {
+    const x = gx + bi * (bw + gap), up = b.value >= 0, y = up ? Y(b.value) : Y(0), h = Math.max(1, Math.abs(Y(b.value) - Y(0)));
+    return `<rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="3" class="${up ? 'bar-good' : 'bar-bad'}"><title>${esc(g.label)}, ${esc(b.label)}: ${up ? 'saves' : 'costs'} ₹${fmt(Math.abs(b.value), 1)} lakh</title></rect>
+    <text x="${x + bw / 2}" y="${up ? Y(b.value) - 6 : Y(b.value) + 14}" text-anchor="middle" class="label">${fmt(b.value, 0)}</text>
+    <text x="${x + bw / 2}" y="${yb + 16}" text-anchor="middle" class="tick small">${esc(b.label)}</text>`; }).join('') + `<text x="${x0 + gi * gw + gw / 2}" y="${yb + 36}" text-anchor="middle" class="label strong">${esc(g.label)}</text>`; }).join('')}
+</svg>`;
+}
+
+/** Horizontal stacked cost breakdown (parts of total annual cost). */
+function costBars({ rows }) {
+  const W = 760, rowH = 34, x0 = 130, x1 = 630, y0 = 30; const H = y0 + rows.length * (rowH + 14) + 30;
+  const parts = [['purchase', 'Purchase', 'seg-1'], ['holding', 'Holding', 'seg-2'], ['ordering', 'Ordering', 'seg-3'], ['shortage', 'Lost production', 'seg-bad']];
+  const max = Math.max(...rows.map(r => parts.reduce((s, p) => s + r[p[0]], 0)));
+  const X = v => (v / max) * (x1 - x0);
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Annual cost breakdown" class="chart">
+  ${parts.map((p, i) => `<rect x="${x0 + i * 130}" y="6" width="12" height="12" rx="2" class="${p[2]}"/><text x="${x0 + i * 130 + 18}" y="16" class="tick">${p[1]}</text>`).join('')}
+  ${rows.map((r, ri) => { let acc = 0; const y = y0 + ri * (rowH + 14);
+    return `<text x="${x0 - 10}" y="${y + rowH / 2 + 4}" text-anchor="end" class="label strong">${esc(r.label)}</text>` + parts.map(p => { const w = X(r[p[0]]); const s = `<rect x="${x0 + acc}" y="${y}" width="${Math.max(0, w - 1)}" height="${rowH}" class="${p[2]}"><title>${esc(r.label)} - ${p[1]}: ₹${lakh(r[p[0]])} lakh</title></rect>`; acc += w; return s; }).join('') +
+    `<text x="${x0 + acc + 8}" y="${y + rowH / 2 + 4}" class="label">₹${lakh(parts.reduce((s, p) => s + r[p[0]], 0))} lakh</text>`; }).join('')}
+</svg>`;
+}
+
+function sparkline(values, w = 140, h = 32) {
+  const lo = Math.min(...values), hi = Math.max(...values); const X = i => 2 + i * (w - 4) / (values.length - 1), Y = v => h - 3 - (v - lo) / (hi - lo || 1) * (h - 6);
+  return `<svg viewBox="0 0 ${w} ${h}" class="spark" aria-hidden="true"><path d="${values.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).join('')}" class="line-muted thin"/></svg>`;
+}
+// sample.js - built-in Konkan Generics dataset (synthetic, see report Section 4)
+// plus the Python reference forecasts used in the report (model/forecasting.py).
+const SAMPLE_CSV = {
+ "demand_monthly": "month,api,demand_kg\n2022-01,Paracetamol,18334.0\n2022-02,Paracetamol,17560.0\n2022-03,Paracetamol,14297.0\n2022-04,Paracetamol,16309.0\n2022-05,Paracetamol,17033.0\n2022-06,Paracetamol,18066.0\n2022-07,Paracetamol,19877.0\n2022-08,Paracetamol,21699.0\n2022-09,Paracetamol,20196.0\n2022-10,Paracetamol,18349.0\n2022-11,Paracetamol,19143.0\n2022-12,Paracetamol,20586.0\n2023-01,Paracetamol,20788.0\n2023-02,Paracetamol,18717.0\n2023-03,Paracetamol,17475.0\n2023-04,Paracetamol,16037.0\n2023-05,Paracetamol,16399.0\n2023-06,Paracetamol,19438.0\n2023-07,Paracetamol,21450.0\n2023-08,Paracetamol,20715.0\n2023-09,Paracetamol,20244.0\n2023-10,Paracetamol,20147.0\n2023-11,Paracetamol,19373.0\n2023-12,Paracetamol,20544.0\n2024-01,Paracetamol,22486.0\n2024-02,Paracetamol,22434.0\n2024-03,Paracetamol,18455.0\n2024-04,Paracetamol,19191.0\n2024-05,Paracetamol,17324.0\n2024-06,Paracetamol,20094.0\n2024-07,Paracetamol,20990.0\n2024-08,Paracetamol,25430.0\n2024-09,Paracetamol,24716.0\n2024-10,Paracetamol,23197.0\n2024-11,Paracetamol,20392.0\n2024-12,Paracetamol,22895.0\n2025-01,Paracetamol,22588.0\n2025-02,Paracetamol,20247.0\n2025-03,Paracetamol,19777.0\n2025-04,Paracetamol,19859.0\n2025-05,Paracetamol,19931.0\n2025-06,Paracetamol,20896.0\n2025-07,Paracetamol,22600.0\n2025-08,Paracetamol,27257.0\n2025-09,Paracetamol,25939.0\n2025-10,Paracetamol,23896.0\n2025-11,Paracetamol,25666.0\n2025-12,Paracetamol,23743.0\n2026-01,Paracetamol,28541.0\n2026-02,Paracetamol,28299.0\n2026-03,Paracetamol,24961.0\n2026-04,Paracetamol,22525.0\n2026-05,Paracetamol,20600.0\n2026-06,Paracetamol,24278.0\n2026-07,Paracetamol,25543.0\n2026-08,Paracetamol,27018.0\n2026-09,Paracetamol,25315.0\n2026-10,Paracetamol,23871.0\n2022-01,Amoxicillin,4879.0\n2022-02,Amoxicillin,4143.0\n2022-03,Amoxicillin,3663.0\n2022-04,Amoxicillin,3464.0\n2022-05,Amoxicillin,3597.0\n2022-06,Amoxicillin,3895.0\n2022-07,Amoxicillin,4546.0\n2022-08,Amoxicillin,5831.0\n2022-09,Amoxicillin,5145.0\n2022-10,Amoxicillin,4807.0\n2022-11,Amoxicillin,4107.0\n2022-12,Amoxicillin,4406.0\n2023-01,Amoxicillin,3920.0\n2023-02,Amoxicillin,3845.0\n2023-03,Amoxicillin,4772.0\n2023-04,Amoxicillin,4143.0\n2023-05,Amoxicillin,4734.0\n2023-06,Amoxicillin,5291.0\n2023-07,Amoxicillin,5666.0\n2023-08,Amoxicillin,5561.0\n2023-09,Amoxicillin,6051.0\n2023-10,Amoxicillin,5101.0\n2023-11,Amoxicillin,5414.0\n2023-12,Amoxicillin,4717.0\n2024-01,Amoxicillin,4874.0\n2024-02,Amoxicillin,4763.0\n2024-03,Amoxicillin,4606.0\n2024-04,Amoxicillin,3960.0\n2024-05,Amoxicillin,4139.0\n2024-06,Amoxicillin,4899.0\n2024-07,Amoxicillin,5314.0\n2024-08,Amoxicillin,6245.0\n2024-09,Amoxicillin,6172.0\n2024-10,Amoxicillin,4520.0\n2024-11,Amoxicillin,3987.0\n2024-12,Amoxicillin,4047.0\n2025-01,Amoxicillin,4772.0\n2025-02,Amoxicillin,5493.0\n2025-03,Amoxicillin,4738.0\n2025-04,Amoxicillin,4674.0\n2025-05,Amoxicillin,4406.0\n2025-06,Amoxicillin,4791.0\n2025-07,Amoxicillin,4862.0\n2025-08,Amoxicillin,5881.0\n2025-09,Amoxicillin,6404.0\n2025-10,Amoxicillin,5446.0\n2025-11,Amoxicillin,5844.0\n2025-12,Amoxicillin,5546.0\n2026-01,Amoxicillin,5474.0\n2026-02,Amoxicillin,5311.0\n2026-03,Amoxicillin,5147.0\n2026-04,Amoxicillin,5328.0\n2026-05,Amoxicillin,4911.0\n2026-06,Amoxicillin,4577.0\n2026-07,Amoxicillin,6001.0\n2026-08,Amoxicillin,6226.0\n2026-09,Amoxicillin,6226.0\n2026-10,Amoxicillin,6504.0\n2022-01,Metformin,11394.0\n2022-02,Metformin,11916.0\n2022-03,Metformin,13069.0\n2022-04,Metformin,12692.0\n2022-05,Metformin,13265.0\n2022-06,Metformin,12483.0\n2022-07,Metformin,12401.0\n2022-08,Metformin,13213.0\n2022-09,Metformin,13340.0\n2022-10,Metformin,14331.0\n2022-11,Metformin,13651.0\n2022-12,Metformin,14557.0\n2023-01,Metformin,13635.0\n2023-02,Metformin,12523.0\n2023-03,Metformin,12318.0\n2023-04,Metformin,12262.0\n2023-05,Metformin,13790.0\n2023-06,Metformin,12848.0\n2023-07,Metformin,13499.0\n2023-08,Metformin,15253.0\n2023-09,Metformin,15124.0\n2023-10,Metformin,16309.0\n2023-11,Metformin,14509.0\n2023-12,Metformin,13126.0\n2024-01,Metformin,15143.0\n2024-02,Metformin,13667.0\n2024-03,Metformin,15070.0\n2024-04,Metformin,15066.0\n2024-05,Metformin,14660.0\n2024-06,Metformin,16116.0\n2024-07,Metformin,17191.0\n2024-08,Metformin,16693.0\n2024-09,Metformin,16062.0\n2024-10,Metformin,16606.0\n2024-11,Metformin,15436.0\n2024-12,Metformin,15970.0\n2025-01,Metformin,16148.0\n2025-02,Metformin,15328.0\n2025-03,Metformin,17387.0\n2025-04,Metformin,15725.0\n2025-05,Metformin,16251.0\n2025-06,Metformin,14922.0\n2025-07,Metformin,17018.0\n2025-08,Metformin,17857.0\n2025-09,Metformin,18080.0\n2025-10,Metformin,20799.0\n2025-11,Metformin,19740.0\n2025-12,Metformin,18201.0\n2026-01,Metformin,20425.0\n2026-02,Metformin,17937.0\n2026-03,Metformin,19638.0\n2026-04,Metformin,19428.0\n2026-05,Metformin,18475.0\n2026-06,Metformin,19886.0\n2026-07,Metformin,20132.0\n2026-08,Metformin,20165.0\n2026-09,Metformin,19057.0\n2026-10,Metformin,21178.0\n2022-01,Azithromycin,829.0\n2022-02,Azithromycin,654.0\n2022-03,Azithromycin,799.0\n2022-04,Azithromycin,688.0\n2022-05,Azithromycin,677.0\n2022-06,Azithromycin,861.0\n2022-07,Azithromycin,959.0\n2022-08,Azithromycin,949.0\n2022-09,Azithromycin,943.0\n2022-10,Azithromycin,847.0\n2022-11,Azithromycin,980.0\n2022-12,Azithromycin,1102.0\n2023-01,Azithromycin,1069.0\n2023-02,Azithromycin,893.0\n2023-03,Azithromycin,499.0\n2023-04,Azithromycin,664.0\n2023-05,Azithromycin,690.0\n2023-06,Azithromycin,716.0\n2023-07,Azithromycin,887.0\n2023-08,Azithromycin,909.0\n2023-09,Azithromycin,877.0\n2023-10,Azithromycin,770.0\n2023-11,Azithromycin,760.0\n2023-12,Azithromycin,961.0\n2024-01,Azithromycin,973.0\n2024-02,Azithromycin,909.0\n2024-03,Azithromycin,834.0\n2024-04,Azithromycin,797.0\n2024-05,Azithromycin,753.0\n2024-06,Azithromycin,801.0\n2024-07,Azithromycin,902.0\n2024-08,Azithromycin,997.0\n2024-09,Azithromycin,869.0\n2024-10,Azithromycin,993.0\n2024-11,Azithromycin,1082.0\n2024-12,Azithromycin,1095.0\n2025-01,Azithromycin,992.0\n2025-02,Azithromycin,960.0\n2025-03,Azithromycin,932.0\n2025-04,Azithromycin,734.0\n2025-05,Azithromycin,748.0\n2025-06,Azithromycin,811.0\n2025-07,Azithromycin,845.0\n2025-08,Azithromycin,852.0\n2025-09,Azithromycin,736.0\n2025-10,Azithromycin,780.0\n2025-11,Azithromycin,791.0\n2025-12,Azithromycin,919.0\n2026-01,Azithromycin,937.0\n2026-02,Azithromycin,874.0\n2026-03,Azithromycin,880.0\n2026-04,Azithromycin,804.0\n2026-05,Azithromycin,730.0\n2026-06,Azithromycin,756.0\n2026-07,Azithromycin,795.0\n2026-08,Azithromycin,893.0\n2026-09,Azithromycin,896.0\n2026-10,Azithromycin,1140.0\n",
+ "api_params": "api,china_price_inr_kg,india_premium,units_per_kg,ptr_inr_per_unit,contribution_margin,current_china_share,current_safety_weeks,india_price_inr_kg,shortage_cost_inr_kg,holding_rate_pa,therapy\nParacetamol,260,0.22,2000,0.9,0.4,0.9,6,317.0,1080.0,0.24,Acute - analgesic/antipyretic\nAmoxicillin,1900,0.22,2000,4.0,0.4,0.85,6,2318.0,4800.0,0.24,Acute - anti-infective\nMetformin,350,0.22,2000,1.2,0.35,0.7,6,427.0,1260.0,0.24,Chronic - anti-diabetic\nAzithromycin,8500,0.22,2000,15.0,0.4,0.8,6,10370.0,18000.0,0.24,Acute - respiratory anti-infective\n",
+ "supplier_params": "supplier,origin,lt_mean_weeks,lt_sd_weeks,lt_min_weeks,ordering_cost_inr,max_share_of_requirement\nS1-China (Shijiazhuang / Zhejiang cluster),China,6.0,1.5,4,40000,1.0\nS2-India (Hyderabad / Vapi PLI unit),India,2.0,0.5,1,15000,0.7\n",
+ "scenarios": "scenario,p_start_weekly,mean_duration_weeks,china_price_shock,india_passthrough,expected_events_per_year\nCalm (pre-2025),0.005,4,0.2,0.4,0.26\nBase (2026 elevated),0.02,8,0.6,0.4,1.04\nSevere (prolonged),0.04,14,1.0,0.4,2.08\n"
+};
+const REFERENCE_FORECASTS = {"Amoxicillin": {"selected": "Holt-Winters", "spec": "A_d,M (damped additive trend, multiplicative season)", "residualCv": 0.0877, "origins": 16, "table": [{"model": "Naive", "spec": "last value", "rolling": 9.9, "mape": 8.35, "rmse": 575.64, "mase": 0.77, "bias": -2.6}, {"model": "Seasonal naive", "spec": "same month last year", "rolling": 11.36, "mape": 12.82, "rmse": 898.36, "mase": 1.19, "bias": -11.32}, {"model": "Holt-Winters", "spec": "A_d,M (damped additive trend, multiplicative season)", "rolling": 9.17, "mape": 10.78, "rmse": 721.5, "mase": 0.98, "bias": -9.5}, {"model": "SARIMA", "spec": "SARIMA(0, 1, 1)x(0, 1, 1, 12)", "rolling": 9.81, "mape": 7.52, "rmse": 499.49, "mase": 0.68, "bias": -0.25}], "future": [{"month": "2026-11", "forecast": 5443.0, "lo80": 4806.0, "hi80": 6113.0, "lo95": 4436.0, "hi95": 6434.0}, {"month": "2026-12", "forecast": 5252.0, "lo80": 4600.0, "hi80": 5873.0, "lo95": 4288.0, "hi95": 6242.0}, {"month": "2027-01", "forecast": 5505.0, "lo80": 4854.0, "hi80": 6165.0, "lo95": 4490.0, "hi95": 6499.0}, {"month": "2027-02", "forecast": 5440.0, "lo80": 4788.0, "hi80": 6055.0, "lo95": 4471.0, "hi95": 6449.0}, {"month": "2027-03", "forecast": 5277.0, "lo80": 4660.0, "hi80": 5952.0, "lo95": 4328.0, "hi95": 6266.0}, {"month": "2027-04", "forecast": 4976.0, "lo80": 4344.0, "hi80": 5649.0, "lo95": 4005.0, "hi95": 5937.0}, {"month": "2027-05", "forecast": 4997.0, "lo80": 4349.0, "hi80": 5637.0, "lo95": 3980.0, "hi95": 5981.0}, {"month": "2027-06", "forecast": 5355.0, "lo80": 4724.0, "hi80": 6000.0, "lo95": 4377.0, "hi95": 6340.0}, {"month": "2027-07", "forecast": 6030.0, "lo80": 5380.0, "hi80": 6700.0, "lo95": 5062.0, "hi95": 7033.0}, {"month": "2027-08", "forecast": 6775.0, "lo80": 6131.0, "hi80": 7400.0, "lo95": 5812.0, "hi95": 7786.0}, {"month": "2027-09", "forecast": 6842.0, "lo80": 6172.0, "hi80": 7502.0, "lo95": 5834.0, "hi95": 7843.0}, {"month": "2027-10", "forecast": 6026.0, "lo80": 5374.0, "hi80": 6661.0, "lo95": 5022.0, "hi95": 6955.0}]}, "Azithromycin": {"selected": "Naive", "spec": "last value", "residualCv": 0.1299, "origins": 16, "table": [{"model": "Naive", "spec": "last value", "rolling": 10.2, "mape": 10.62, "rmse": 136.21, "mase": 0.88, "bias": -10.13}, {"model": "Seasonal naive", "spec": "same month last year", "rolling": 12.47, "mape": 13.03, "rmse": 157.17, "mase": 1.03, "bias": 1.46}, {"model": "Holt-Winters", "spec": "A_d,M (damped additive trend, multiplicative season)", "rolling": 11.24, "mape": 9.98, "rmse": 129.75, "mase": 0.8, "bias": -8.22}, {"model": "SARIMA", "spec": "SARIMA(0, 1, 1)x(0, 1, 1, 12)", "rolling": 12.77, "mape": 13.79, "rmse": 162.76, "mase": 1.09, "bias": -12.44}], "future": [{"month": "2026-11", "forecast": 1140.0, "lo80": 997.0, "hi80": 1283.0, "lo95": 921.0, "hi95": 1359.0}, {"month": "2026-12", "forecast": 1140.0, "lo80": 938.0, "hi80": 1342.0, "lo95": 831.0, "hi95": 1449.0}, {"month": "2027-01", "forecast": 1140.0, "lo80": 892.0, "hi80": 1388.0, "lo95": 761.0, "hi95": 1519.0}, {"month": "2027-02", "forecast": 1140.0, "lo80": 854.0, "hi80": 1426.0, "lo95": 703.0, "hi95": 1577.0}, {"month": "2027-03", "forecast": 1140.0, "lo80": 820.0, "hi80": 1460.0, "lo95": 651.0, "hi95": 1629.0}, {"month": "2027-04", "forecast": 1140.0, "lo80": 790.0, "hi80": 1490.0, "lo95": 604.0, "hi95": 1676.0}, {"month": "2027-05", "forecast": 1140.0, "lo80": 762.0, "hi80": 1518.0, "lo95": 562.0, "hi95": 1718.0}, {"month": "2027-06", "forecast": 1140.0, "lo80": 736.0, "hi80": 1544.0, "lo95": 522.0, "hi95": 1758.0}, {"month": "2027-07", "forecast": 1140.0, "lo80": 711.0, "hi80": 1569.0, "lo95": 484.0, "hi95": 1796.0}, {"month": "2027-08", "forecast": 1140.0, "lo80": 688.0, "hi80": 1592.0, "lo95": 449.0, "hi95": 1831.0}, {"month": "2027-09", "forecast": 1140.0, "lo80": 666.0, "hi80": 1614.0, "lo95": 415.0, "hi95": 1865.0}, {"month": "2027-10", "forecast": 1140.0, "lo80": 645.0, "hi80": 1635.0, "lo95": 383.0, "hi95": 1897.0}]}, "Metformin": {"selected": "SARIMA", "spec": "SARIMA(1, 1, 1)x(1, 1, 0, 12)", "residualCv": 0.0713, "origins": 16, "table": [{"model": "Naive", "spec": "last value", "rolling": 6.81, "mape": 7.08, "rmse": 1572.93, "mase": 0.87, "bias": 6.54}, {"model": "Seasonal naive", "spec": "same month last year", "rolling": 13.47, "mape": 14.24, "rmse": 3069.88, "mase": 1.8, "bias": -14.23}, {"model": "Holt-Winters", "spec": "A_d,M (damped additive trend, multiplicative season)", "rolling": 5.55, "mape": 8.28, "rmse": 1854.28, "mase": 1.05, "bias": -8.32}, {"model": "SARIMA", "spec": "SARIMA(0, 1, 1)x(1, 1, 1, 12)", "rolling": 4.64, "mape": 4.41, "rmse": 1047.04, "mase": 0.56, "bias": -3.87}], "future": [{"month": "2026-11", "forecast": 19944.0, "lo80": 18836.0, "hi80": 21052.0, "lo95": 18249.0, "hi95": 21639.0}, {"month": "2026-12", "forecast": 20014.0, "lo80": 18649.0, "hi80": 21378.0, "lo95": 17926.0, "hi95": 22101.0}, {"month": "2027-01", "forecast": 20550.0, "lo80": 19067.0, "hi80": 22032.0, "lo95": 18282.0, "hi95": 22817.0}, {"month": "2027-02", "forecast": 19375.0, "lo80": 17833.0, "hi80": 20918.0, "lo95": 17016.0, "hi95": 21734.0}, {"month": "2027-03", "forecast": 21344.0, "lo80": 19769.0, "hi80": 22919.0, "lo95": 18936.0, "hi95": 23753.0}, {"month": "2027-04", "forecast": 19952.0, "lo80": 18358.0, "hi80": 21545.0, "lo95": 17515.0, "hi95": 22389.0}, {"month": "2027-05", "forecast": 20179.0, "lo80": 18575.0, "hi80": 21784.0, "lo95": 17726.0, "hi95": 22633.0}, {"month": "2027-06", "forecast": 19379.0, "lo80": 17768.0, "hi80": 20990.0, "lo95": 16915.0, "hi95": 21842.0}, {"month": "2027-07", "forecast": 21109.0, "lo80": 19494.0, "hi80": 22724.0, "lo95": 18638.0, "hi95": 23579.0}, {"month": "2027-08", "forecast": 21787.0, "lo80": 20169.0, "hi80": 23405.0, "lo95": 19313.0, "hi95": 24262.0}, {"month": "2027-09", "forecast": 21748.0, "lo80": 20128.0, "hi80": 23368.0, "lo95": 19271.0, "hi95": 24225.0}, {"month": "2027-10", "forecast": 24349.0, "lo80": 22728.0, "hi80": 25970.0, "lo95": 21870.0, "hi95": 26828.0}]}, "Paracetamol": {"selected": "Holt-Winters", "spec": "A_d,M (damped additive trend, multiplicative season)", "residualCv": 0.0598, "origins": 16, "table": [{"model": "Naive", "spec": "last value", "rolling": 11.5, "mape": 7.58, "rmse": 2459.94, "mase": 1.22, "bias": -4.53}, {"model": "Seasonal naive", "spec": "same month last year", "rolling": 10.36, "mape": 11.52, "rmse": 3913.46, "mase": 1.88, "bias": -11.35}, {"model": "Holt-Winters", "spec": "A_d,M (damped additive trend, multiplicative season)", "rolling": 8.5, "mape": 7.71, "rmse": 2602.55, "mase": 1.26, "bias": -5.88}, {"model": "SARIMA", "spec": "SARIMA(0, 1, 1)x(0, 1, 1, 12)", "rolling": 8.51, "mape": 8.37, "rmse": 2640.56, "mase": 1.37, "bias": -4.68}], "future": [{"month": "2026-11", "forecast": 23691.0, "lo80": 21855.0, "hi80": 25624.0, "lo95": 20787.0, "hi95": 26549.0}, {"month": "2026-12", "forecast": 24404.0, "lo80": 22342.0, "hi80": 26475.0, "lo95": 21364.0, "hi95": 27664.0}, {"month": "2027-01", "forecast": 26250.0, "lo80": 23889.0, "hi80": 28628.0, "lo95": 22765.0, "hi95": 29993.0}, {"month": "2027-02", "forecast": 24983.0, "lo80": 22476.0, "hi80": 27422.0, "lo95": 21346.0, "hi95": 28890.0}, {"month": "2027-03", "forecast": 22075.0, "lo80": 19599.0, "hi80": 24738.0, "lo95": 18396.0, "hi95": 25960.0}, {"month": "2027-04", "forecast": 21505.0, "lo80": 18823.0, "hi80": 24256.0, "lo95": 17583.0, "hi95": 25648.0}, {"month": "2027-05", "forecast": 20701.0, "lo80": 17948.0, "hi80": 23344.0, "lo95": 16408.0, "hi95": 24848.0}, {"month": "2027-06", "forecast": 23309.0, "lo80": 20171.0, "hi80": 26540.0, "lo95": 18389.0, "hi95": 27993.0}, {"month": "2027-07", "forecast": 24962.0, "lo80": 21493.0, "hi80": 28389.0, "lo95": 19642.0, "hi95": 30210.0}, {"month": "2027-08", "forecast": 27516.0, "lo80": 23543.0, "hi80": 31570.0, "lo95": 21447.0, "hi95": 33340.0}, {"month": "2027-09", "forecast": 26180.0, "lo80": 22218.0, "hi80": 30066.0, "lo95": 20319.0, "hi95": 31834.0}, {"month": "2027-10", "forecast": 24529.0, "lo80": 20652.0, "hi80": 28454.0, "lo95": 18715.0, "hi95": 30207.0}]}};
+// app.js - API Resilience Planner (Konkan Generics). Screens, state and wiring.
+
+
+
+
+
+// ------------------------------------------------------------------ state
+const S = {
+  source: 'sample', tables: null, series: {}, apis: [], api: null,
+  useReference: true, forecasts: {}, forecastBusy: false,
+  scenarioPreset: 'Base (2026 elevated)', scenario: null, surge: 2.0,
+  cfg: { reps: 1000, fillTarget: 0.98, objective: 'robust', seed: 7 },
+  results: {}, compare: {}, sweep: {}, busy: null, uploadErrors: [], uploadInfo: '',
+  custom: { alpha: 0.6, ssWk: 8, sw: true },
+};
+const SCREENS = [
+  ['about', 'About & context'], ['data', 'Data & inputs'], ['forecast', 'Forecast'], ['scenario', 'Risk scenario'],
+  ['optimise', 'Optimise'], ['compare', 'Compare & stress-test'], ['recommend', 'Recommendations & download'], ['help', 'Help'],
+];
+const $ = sel => document.querySelector(sel);
+const html = (strings, ...vals) => strings.reduce((s, str, i) => s + str + (i < vals.length ? (vals[i] ?? '') : ''), '');
+const escH = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const pct = (v, d = 1) => `${fmt(v * 100, d)}%`;
+const polText = p => `${Math.round(p.alpha * 100)}% China / ${Math.round((1 - p.alpha) * 100)}% India, ${p.ssWk} wks buffer${p.sw ? ', switch on' : ''}`;
+
+// ------------------------------------------------------------------ worker
+let worker, nextId = 1; const pending = new Map();
+function getWorker() {
+  if (!worker) {
+    worker = new Worker(URL.createObjectURL(new Blob([document.getElementById('worker-src').textContent], { type: 'text/javascript' })));
+    worker.onmessage = ev => {
+      const { id, type, value } = ev.data; const p = pending.get(id); if (!p) return;
+      if (type === 'progress') p.onProgress && p.onProgress(value);
+      else { pending.delete(id); type === 'error' ? p.reject(new Error(value)) : p.resolve(value); }
+    };
+    worker.onerror = e => { for (const p of pending.values()) p.reject(new Error(e.message || 'Worker error')); pending.clear(); };
+  }
+  return worker;
+}
+const callWorker = (type, payload, onProgress) => new Promise((resolve, reject) => {
+  const id = nextId++; pending.set(id, { resolve, reject, onProgress }); getWorker().postMessage({ id, type, payload });
+});
+
+// ------------------------------------------------------------------ data loading
+function loadTables(csvs, source) {
+  const parsed = {}, errors = [];
+  for (const name of Object.keys(SCHEMAS)) {
+    const v = validate(name, parseCsv(csvs[name])); if (!v.ok) errors.push(...v.errors); parsed[name] = v.rows;
+  }
+  if (!errors.length) errors.push(...crossValidate(parsed));
+  if (errors.length) return errors;
+  S.tables = parsed; S.source = source; S.series = {};
+  for (const r of [...parsed.demand_monthly].sort((a, b) => a.month.localeCompare(b.month))) {
+    (S.series[r.api] ||= { months: [], y: [] }); S.series[r.api].months.push(r.month); S.series[r.api].y.push(r.demand_kg);
+  }
+  S.apis = Object.keys(S.series); S.api = S.apis[0];
+  S.useReference = source === 'sample'; S.forecasts = {}; S.results = {}; S.compare = {}; S.sweep = {};
+  setScenarioPreset(parsed.scenarios.find(s => /base/i.test(s.scenario))?.scenario || parsed.scenarios[0].scenario);
+  computeForecasts();
+  return [];
+}
+
+function computeForecasts() {
+  S.forecasts = {};
+  if (S.useReference && S.source === 'sample') {
+    for (const a of S.apis) S.forecasts[a] = { ...REFERENCE_FORECASTS[a], source: 'reference' };
+    render(); return;
+  }
+  S.forecastBusy = true; render();
+  const queue = [...S.apis];
+  const step = () => {
+    const a = queue.shift(); if (!a) { S.forecastBusy = false; render(); return; }
+    const s = S.series[a]; S.forecasts[a] = { ...runForecast(s.y, s.months), source: 'app' };
+    setTimeout(step, 10);
+  };
+  setTimeout(step, 30);
+}
+
+function setScenarioPreset(name) {
+  const r = S.tables.scenarios.find(s => s.scenario === name);
+  S.scenarioPreset = name;
+  S.scenario = { name, pStart: r.p_start_weekly, meanDur: r.mean_duration_weeks, chinaShock: r.china_price_shock, indiaPassthrough: r.india_passthrough };
+}
+const scenarioFromRow = r => ({ name: r.scenario, pStart: r.p_start_weekly, meanDur: r.mean_duration_weeks, chinaShock: r.china_price_shock, indiaPassthrough: r.india_passthrough });
+
+function apiInputs(name, overrides = {}) {
+  const p = S.tables.api_params.find(r => r.api === name);
+  const c = S.tables.supplier_params.find(r => r.origin === 'China'), i = S.tables.supplier_params.find(r => r.origin === 'India');
+  const f = S.forecasts[name];
+  return {
+    name, weeklyMean: Array.from(weeklyProfile(f.future)), weeklyCv: f.residualCv * Math.sqrt(52 / 12),
+    priceChina: p.china_price_inr_kg, priceIndia: p.india_price_inr_kg, shortageCost: p.shortage_cost_inr_kg, holdingRate: p.holding_rate_pa,
+    orderCostChina: c.ordering_cost_inr, orderCostIndia: i.ordering_cost_inr,
+    ltChina: [c.lt_mean_weeks, c.lt_sd_weeks, c.lt_min_weeks], ltIndia: [i.lt_mean_weeks, i.lt_sd_weeks, i.lt_min_weeks],
+    indiaCapShare: i.max_share_of_requirement, surgeMultiplier: S.surge, ...overrides,
+  };
+}
+const currentPolicy = name => { const p = S.tables.api_params.find(r => r.api === name); return { alpha: p.current_china_share, ssWk: p.current_safety_weeks }; };
+const cfgFor = () => ({ ...DEFAULT_CFG, reps: S.cfg.reps, fillTarget: S.cfg.fillTarget, seed: S.cfg.seed });
+const ready = () => S.tables && S.apis.every(a => S.forecasts[a]);
+function invalidate() { S.results = {}; S.compare = {}; S.sweep = {}; }
+
+// ------------------------------------------------------------------ actions
+async function runOptimise(names) {
+  if (!ready()) return;
+  for (const a of names) {
+    S.busy = { label: `Optimising ${a}: 374 policies × ${S.cfg.reps.toLocaleString('en-IN')} simulated years`, value: 0 }; render();
+    try {
+      const t0 = performance.now();
+      const res = await callWorker('optimise', { api: apiInputs(a), sc: S.scenario, cfg: cfgFor(), objective: S.cfg.objective, current: currentPolicy(a) },
+        v => { S.busy.value = v; updateProgress(); });
+      S.results[a] = { ...res, scenario: { ...S.scenario }, cfg: { ...S.cfg }, seconds: (performance.now() - t0) / 1000, forecastSource: S.forecasts[a].source };
+    } catch (e) { S.busy = null; toast(`Optimisation failed: ${e.message}`); render(); return; }
+  }
+  S.busy = null; render();
+}
+
+async function runCompare(a) {
+  const r = S.results[a]; if (!r || !r.best) return;
+  const scs = S.tables.scenarios.map(scenarioFromRow);
+  if (!scs.some(s => s.name === S.scenario.name && s.pStart === S.scenario.pStart)) scs.push({ ...S.scenario, name: `${S.scenario.name} (custom)` });
+  const cur = currentPolicy(a);
+  const policies = [{ label: 'Current', ...cur, sw: false }, { label: 'Recommended', alpha: r.best.alpha, ssWk: r.best.ssWk, sw: r.best.sw }, { label: 'Your custom policy', ...S.custom }];
+  S.busy = { label: `Stress-testing ${a} in ${scs.length} scenarios`, value: 0 }; render();
+  try { S.compare[a] = { rows: await callWorker('evaluate', { api: apiInputs(a), scenarios: scs, cfg: cfgFor(), policies }, v => { S.busy.value = v; updateProgress(); }), policies }; }
+  catch (e) { toast(`Stress test failed: ${e.message}`); }
+  S.busy = null; render();
+}
+
+const SWEEPS = {
+  premium: { label: 'India price premium', values: [0.10, 0.15, 0.22, 0.30, 0.40], show: v => `+${Math.round(v * 100)}%`, apply: (api, sc, v) => [{ ...api, priceIndia: api.priceChina * (1 + v) }, sc] },
+  pstart: { label: 'Disruption start probability / week', values: [0.005, 0.01, 0.02, 0.03, 0.04], show: v => `${v} (${fmt(52 * v, 2)}/yr)`, apply: (api, sc, v) => [api, { ...sc, pStart: v }] },
+  duration: { label: 'Mean disruption length', values: [4, 8, 12, 16], show: v => `${v} wks`, apply: (api, sc, v) => [api, { ...sc, meanDur: v }] },
+  cap: { label: 'India capacity cap', values: [0.4, 0.7, 1.0], show: v => pct(v, 0), apply: (api, sc, v) => [{ ...api, indiaCapShare: v }, sc] },
+  surge: { label: 'India crisis allocation (× normal share)', values: [1, 1.5, 2, 3], show: v => `${v}×`, apply: (api, sc, v) => [{ ...api, surgeMultiplier: v }, sc] },
+  shortage: { label: 'Shortage cost multiplier', values: [0.5, 1, 2], show: v => `×${v}`, apply: (api, sc, v) => [{ ...api, shortageCost: api.shortageCost * v }, sc] },
+};
+let sweepKey = 'premium';
+async function runSweep(a) {
+  const def = SWEEPS[sweepKey]; const base = apiInputs(a);
+  const variants = def.values.map(v => { const [api, sc] = def.apply(base, S.scenario, v); return { label: def.label, value: v, api, sc }; });
+  S.busy = { label: `Sensitivity: re-optimising ${a} for ${variants.length} values of ${def.label.toLowerCase()}`, value: 0 }; render();
+  try { S.sweep[a] = { key: sweepKey, rows: await callWorker('sweep', { variants, cfg: { ...cfgFor(), reps: Math.min(S.cfg.reps, 1000) }, objective: S.cfg.objective }, v => { S.busy.value = v; updateProgress(); }) }; }
+  catch (e) { toast(`Sensitivity run failed: ${e.message}`); }
+  S.busy = null; render();
+}
+
+// ------------------------------------------------------------------ recommendations text
+function adviceFor(a) {
+  const r = S.results[a]; if (!r) return null;
+  const alerts = []; const lines = [];
+  if (!r.best) {
+    alerts.push(['critical', `No policy reaches the ${pct(r.cfg.fillTarget, 1)} fill-rate target for ${a} under this scenario. Lower the target, add Indian capacity, or allow longer buffers.`]);
+    return { lines, alerts };
+  }
+  const b = r.best, c = r.current; const api = apiInputs(a); const mw = api.weeklyMean.slice(12, 64).reduce((s, v) => s + v, 0) / 52;
+  lines.push(`Place <b>${Math.round(b.alpha * 100)}%</b> of each ${escH(a)} order with S1-China and <b>${Math.round((1 - b.alpha) * 100)}%</b> with S2-India.`);
+  lines.push(`Hold <b>${b.ssWk} weeks</b> of safety stock (about ${fmt(b.ssWk * mw, 0)} kg, worth ₹${lakh(b.ssWk * mw * api.priceChina)} lakh at China prices).`);
+  lines.push(b.sw ? 'When a China-route disruption is confirmed at a review, <b>place the whole order with S2-India</b> up to its crisis allocation.' : 'No contingency switch is needed at this risk level.');
+  if (c) {
+    const save = c.total - b.total;
+    lines.push(`Against the current policy (${polText(c)}), expected annual cost ${save >= 0 ? 'falls' : 'rises'} by <b>₹${lakh(Math.abs(save))} lakh</b> (${pct(Math.abs(save) / c.total, 1)}); fill rate moves from ${pct(c.fill, 2)} to ${pct(b.fill, 2)}; worst-5% year cost changes by ₹${lakh(b.cvar95 - c.cvar95)} lakh.`);
+    if (c.fill < r.cfg.fillTarget) alerts.push(['warning', `The current policy misses the ${pct(r.cfg.fillTarget, 1)} fill-rate target (${pct(c.fill, 2)}): expect about ${fmt(c.stockoutWeeks, 1)} stock-out weeks a year.`]);
+  }
+  if (b.ssWk === SS_GRID.at(-1)) alerts.push(['warning', 'The recommended buffer is at the top of the tested range (16 weeks). Inventory alone is struggling; a larger Indian share or a capacity contract may be needed.']);
+  if (b.chinaShare > b.alpha + 0.05) alerts.push(['info', `The Indian supplier's capacity cap binds: ${pct(b.chinaShare, 0)} of kg still come from China although the target split is ${pct(b.alpha, 0)}.`]);
+  if (b.sw) alerts.push(['info', `The switch rule assumes S2-India will supply up to ${S.surge}× your normal India share in a crisis. Confirm this in the supply contract.`]);
+  if (r.nNear > 1) alerts.push(['info', `${r.nNear} policies are within 1% of the lowest expected cost (inside sampling noise); among them this one has the lowest worst-5% cost.`]);
+  return { lines, alerts };
+}
+
+// ------------------------------------------------------------------ screens
+const sel = (id, opts, val) => `<select id="${id}">${opts.map(o => `<option value="${escH(o[0])}" ${String(o[0]) === String(val) ? 'selected' : ''}>${escH(o[1])}</option>`).join('')}</select>`;
+const apiPicker = () => `<label class="field inline"><span>API</span>${sel('pick-api', S.apis.map(a => [a, a]), S.api)}</label>`;
+const notReady = () => `<div class="callout">Load data first (Data & inputs) and wait for forecasts to finish.</div>`;
+const kpi = (label, value, sub, cls = '') => `<div class="kpi ${cls}"><div class="kpi-label">${label}</div><div class="kpi-value">${value}</div>${sub ? `<div class="kpi-sub">${sub}</div>` : ''}</div>`;
+
+function screenAbout() {
+  return html`
+  <section class="lead">
+    <p class="eyebrow">Konkan Generics Pvt. Ltd. · Verna, Goa · Head of Procurement</p>
+    <h1>How much should we still buy from China?</h1>
+    <p class="lede">This app sets, for each imported API, the share of orders placed with the Chinese and the Indian supplier, the safety stock to hold, and whether to switch orders to India when a China-route disruption hits. It forecasts demand, simulates thousands of possible years, and recommends the cheapest policy that keeps at least 98% of demand met.</p>
+    <div class="cta-row"><a class="btn primary" href="#optimise">Run the optimiser</a><a class="btn" href="#help">How to use it</a></div>
+  </section>
+  <section class="grid-2">
+    <div class="card"><h3>Why this matters in 2026</h3>
+      <ul class="tight">
+        <li>China supplies about <b>73%</b> of India's API imports (H1 FY2026).</li>
+        <li>The West Asia war pushed paracetamol raw material from <b>₹250 to ₹450/kg in 15 days</b> (March 2026).</li>
+        <li>Essential generics are price-regulated, so cost shocks cannot be passed on: they must be avoided or absorbed.</li>
+        <li>Konkan buys 70–90% of four APIs from China and holds 6 weeks of buffer, with no rule for a disruption.</li>
+      </ul></div>
+    <div class="card"><h3>Strategy fit</h3>
+      <p><b>Business strategy:</b> cost leadership in essential generics. <b>Supply chain strategy:</b> efficient (lean, cheapest source), now needing <b>risk-hedging</b>: backup supply and buffers (Fisher 1997; Lee 2002).</p>
+      <p>The app keeps China as the efficient core and buys only as much hedging (Indian volume, stock, a switch rule) as the risk level justifies, and shows its price.</p></div>
+  </section>
+  <section class="card"><h3>The supply chain</h3>${systemMap()}
+    <p class="muted small">Material flows left to right; information (forecasts, POs, QC results, disruption alerts) and money (USD advance to S1, 60-day credit with S2) flow back. The Indian supplier also imports Chinese KSMs, so 40% of a China price shock passes through.</p></section>
+  <section class="grid-2">
+    <div class="card"><h3>What the model decides</h3>
+      <table class="t"><tbody>
+        <tr><td>China share of orders</td><td>0–100% in 10% steps</td></tr>
+        <tr><td>Safety stock</td><td>0–16 weeks of demand</td></tr>
+        <tr><td>Contingency switch</td><td>on / off</td></tr>
+        <tr><td>Objective</td><td>min expected annual cost (purchase + ordering + holding + lost production)</td></tr>
+        <tr><td>Constraint</td><td>expected fill rate ≥ target (default 98%)</td></tr>
+        <tr><td>Tie-break</td><td>among policies within 1% of the cheapest, lowest CVaR95 (worst-5% year)</td></tr>
+      </tbody></table></div>
+    <div class="card"><h3>Assumptions and limitations</h3>
+      <ul class="tight small">
+        <li>Sample data is <b>synthetic</b>, calibrated to published Indian figures; Konkan Generics is fictional.</li>
+        <li>Each API is modelled separately; one disruption hitting all four at once is not modelled, so tail risk is if anything understated.</li>
+        <li>Review every 4 weeks; order-up-to policy; unmet demand is lost (lost production).</li>
+        <li>In a crisis the Indian supplier allocates at most ${S.surge}× your normal India share; an unused supplier is not qualified and cannot be switched to.</li>
+        <li>Disruption frequency is calibrated from only five events (2020–2026): use the scenarios and sensitivity screen, not one number.</li>
+        <li>Results are Monte Carlo estimates; a different seed moves costs by roughly ±0.5%.</li>
+      </ul></div>
+  </section>
+  <section class="card"><h3>Engine</h3>
+    <p class="small">Everything runs in your browser: no data leaves your computer. The forecasting and simulation engines are JavaScript ports of the project's Python model (<code>model/forecasting.py</code>, <code>model/simulation.py</code>). On the same inputs, the JavaScript simulation reproduces the Python costs within 0.1–1.0% (inside Monte Carlo noise) and the same China share in all 12 API × scenario cases. With the built-in sample data the app uses the Python reference forecasts by default, so its results match the report; you can re-fit the forecasts in the app on the Forecast screen.</p></section>`;
+}
+
+function systemMap() {
+  const b = (x, y, t1, t2, t3, cls = '') => `<g><rect x="${x}" y="${y}" width="118" height="66" rx="8" class="box ${cls}"/><text x="${x + 59}" y="${y + 22}" text-anchor="middle" class="label strong">${t1}</text><text x="${x + 59}" y="${y + 40}" text-anchor="middle" class="tick">${t2}</text><text x="${x + 59}" y="${y + 55}" text-anchor="middle" class="tick">${t3}</text></g>`;
+  const ar = (x1, y1, x2, y2) => `<path d="M${x1} ${y1}H${x2}" class="arrow" marker-end="url(#ah)"/>`;
+  return `<svg viewBox="0 0 760 210" class="chart" role="img" aria-label="Supply chain map">
+  <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" class="arrowhead"/></marker></defs>
+  ${b(8, 72, 'KSM makers', 'China, tier 2', 'petrochem inputs')}${b(158, 20, 'S1 China API', '70–90% volume', 'base price')}${b(158, 124, 'S2 India API', '10–30% volume', '+22% price')}
+  ${b(308, 20, 'Sea + customs', '6 ± 1.5 weeks', 'JNPT, Mormugao')}${b(308, 124, 'Road freight', '2 ± 0.5 weeks', 'Hyderabad, Vapi')}
+  ${b(470, 72, 'Konkan plant', 'QC, formulation', 'Verna, Goa', 'focal')}${b(630, 72, 'Downstream', 'C&F, chemists', 'and tenders')}
+  ${ar(126, 92, 156, 92)}${ar(126, 128, 156, 128)}${ar(276, 53, 306, 53)}${ar(276, 157, 306, 157)}${ar(426, 86, 468, 86)}${ar(426, 124, 468, 124)}${ar(588, 105, 628, 105)}
+</svg>`;
+}
+
+function screenData() {
+  const t = S.tables;
+  return html`
+  <h1>Data & inputs</h1>
+  <p class="lede">Using: <b>${S.source === 'sample' ? 'built-in sample data (Konkan Generics, synthetic)' : 'your uploaded files'}</b>. Upload any of the four files to replace the sample; missing files keep the sample version.</p>
+  <section class="card">
+    <h3>Upload CSV files</h3>
+    <div class="uploads">
+      ${Object.keys(SCHEMAS).map(n => `<label class="upload"><span class="mono">${n}.csv</span><input type="file" accept=".csv,text/csv" data-file="${n}"/><span class="muted small">${SCHEMAS[n].map(c => c.key).join(', ')}</span></label>`).join('')}
+    </div>
+    <div class="cta-row"><button class="btn primary" id="btn-apply-upload">Validate and use uploaded files</button><button class="btn" id="btn-sample">Reset to sample data</button><button class="btn" id="btn-templates">Download blank templates</button><button class="btn" id="btn-sample-csv">Download sample files</button></div>
+    ${S.uploadInfo ? `<div class="callout good">${escH(S.uploadInfo)}</div>` : ''}
+    ${S.uploadErrors.length ? `<div class="callout bad"><b>Not loaded. Fix these and upload again:</b><ul>${S.uploadErrors.map(e => `<li>${escH(e)}</li>`).join('')}</ul></div>` : ''}
+  </section>
+  ${t ? html`
+  <section class="card"><h3>Demand history</h3>
+    <table class="t"><thead><tr><th>API</th><th>Months</th><th>From</th><th>To</th><th class="num">Mean kg / month</th><th class="num">Min</th><th class="num">Max</th><th>Shape</th></tr></thead><tbody>
+    ${S.apis.map(a => { const s = S.series[a]; return `<tr><td>${escH(a)}</td><td>${s.y.length}</td><td>${s.months[0]}</td><td>${s.months.at(-1)}</td><td class="num">${fmt(s.y.reduce((x, y) => x + y, 0) / s.y.length, 0)}</td><td class="num">${fmt(Math.min(...s.y), 0)}</td><td class="num">${fmt(Math.max(...s.y), 0)}</td><td>${sparkline(s.y)}</td></tr>`; }).join('')}
+    </tbody></table></section>
+  <section class="card"><h3>API costs and current policy <span class="muted small">(edit to test; results reset)</span></h3>
+    <div class="scroll"><table class="t edit"><thead><tr><th>API</th>${SCHEMAS.api_params.slice(1).map(c => `<th class="num">${c.key.replace(/_/g, ' ')}<br><span class="muted">${c.unit}</span></th>`).join('')}</tr></thead><tbody>
+    ${t.api_params.map((r, i) => `<tr><td>${escH(r.api)}</td>${SCHEMAS.api_params.slice(1).map(c => `<td><input type="number" step="any" data-edit="api_params" data-row="${i}" data-key="${c.key}" value="${r[c.key]}" ${c.min !== undefined ? `min="${c.min}"` : ''} ${c.max !== undefined ? `max="${c.max}"` : ''}/></td>`).join('')}</tr>`).join('')}
+    </tbody></table></div></section>
+  <section class="card"><h3>Suppliers</h3>
+    <div class="scroll"><table class="t edit"><thead><tr><th>Supplier</th><th>Origin</th>${SCHEMAS.supplier_params.slice(2).map(c => `<th class="num">${c.key.replace(/_/g, ' ')}<br><span class="muted">${c.unit}</span></th>`).join('')}</tr></thead><tbody>
+    ${t.supplier_params.map((r, i) => `<tr><td>${escH(r.supplier)}</td><td>${escH(r.origin)}</td>${SCHEMAS.supplier_params.slice(2).map(c => `<td><input type="number" step="any" data-edit="supplier_params" data-row="${i}" data-key="${c.key}" value="${r[c.key]}" ${c.min !== undefined ? `min="${c.min}"` : ''} ${c.max !== undefined ? `max="${c.max}"` : ''}/></td>`).join('')}</tr>`).join('')}
+    </tbody></table></div>
+    <label class="field inline"><span>India crisis allocation <span class="muted">(× normal India share)</span></span><input type="number" id="surge" min="0" max="5" step="0.5" value="${S.surge}"/></label>
+  </section>` : ''}`;
+}
+
+function screenForecast() {
+  if (!S.tables) return notReady();
+  const f = S.forecasts[S.api];
+  return html`
+  <div class="row-between"><h1>Forecast</h1>${apiPicker()}</div>
+  <p class="lede">The order-up-to level needs expected demand for the next 8–10 weeks, and the safety stock needs to know how wrong that forecast usually is. Four models are compared by rolling-origin cross-validation (1–3 months ahead); the lowest error wins.</p>
+  ${S.source === 'sample' ? `<div class="callout"><label class="check"><input type="checkbox" id="use-ref" ${S.useReference ? 'checked' : ''}/> Use the Python reference forecasts from the report (recommended for the sample data). Untick to re-fit all forecasts in the app.</label></div>` : ''}
+  ${S.forecastBusy || !f ? '<div class="callout">Fitting forecasts…</div>' : html`
+  <section class="card">
+    <h3>${escH(S.api)}: ${f.selected} selected <span class="muted small">(${f.source === 'reference' ? 'Python reference fit' : 'fitted in the app'})</span></h3>
+    ${forecastChart({ hist: S.series[S.api].months.map((m, i) => ({ m, v: S.series[S.api].y[i] })), fut: f.future, title: `${S.api} demand and forecast` })}
+    <div class="kpis">${kpi('Selected model', f.selected, f.spec || '')}${kpi('Forecast, next 12 months', `${fmt(f.future.reduce((s, r) => s + r.forecast, 0) / 1000, 1)}k kg`, `${fmt(Math.min(...f.future.map(r => r.forecast)) / 1000, 1)}k to ${fmt(Math.max(...f.future.map(r => r.forecast)) / 1000, 1)}k a month`)}${kpi('Demand uncertainty', pct(f.residualCv, 1), 'CV of forecast errors, monthly')}</div>
+  </section>
+  <section class="card"><h3>Model comparison</h3>
+    <table class="t"><thead><tr><th>Model</th><th class="num">Rolling MAPE, 1–3 months</th><th class="num">12-month holdout MAPE</th><th class="num">RMSE (kg)</th><th class="num">MASE</th><th class="num">Bias</th></tr></thead><tbody>
+    ${f.table.map(r => `<tr class="${r.model === f.selected ? 'hl' : ''}"><td>${r.model}${r.model === f.selected ? ' ✓' : ''}</td><td class="num">${fmt(r.rolling, 2)}%</td><td class="num">${fmt(r.mape, 2)}%</td><td class="num">${fmt(r.rmse, 0)}</td><td class="num">${fmt(r.mase, 2)}</td><td class="num">${fmt(r.bias, 1)}%</td></tr>`).join('')}
+    </tbody></table>
+    <p class="muted small">Rolling MAPE over ${f.origins} forecast origins. MASE below 1 beats the seasonal-naive benchmark. ${f.selected === 'Naive' ? 'No model beats the naive benchmark here: the series is noisy, so the uncertainty must be covered by buffer stock rather than a cleverer forecast.' : ''}</p>
+  </section>`}`;
+}
+
+function screenScenario() {
+  if (!S.tables) return notReady();
+  const sc = S.scenario; const frac = sc.pStart * sc.meanDur / (1 + sc.pStart * sc.meanDur);
+  return html`
+  <h1>Risk scenario</h1>
+  <p class="lede">How often a China-route disruption (port closure, export curb, shipping-lane war) starts, how long it lasts, and how much it moves prices. During a disruption, China orders are held for every disrupted week they overlap.</p>
+  <section class="card">
+    <div class="pills">${S.tables.scenarios.map(r => `<button class="pill ${S.scenarioPreset === r.scenario ? 'on' : ''}" data-preset="${escH(r.scenario)}">${escH(r.scenario)}</button>`).join('')}</div>
+    <div class="form-grid">
+      <label class="field"><span>Weekly probability a disruption starts</span><input type="number" id="sc-p" min="0" max="0.2" step="0.005" value="${sc.pStart}"/><small>${fmt(52 * sc.pStart / (1 + sc.pStart * sc.meanDur), 2)} disruptions a year on average</small></label>
+      <label class="field"><span>Mean disruption length (weeks)</span><input type="number" id="sc-d" min="1" max="52" step="1" value="${sc.meanDur}"/><small>${pct(frac, 0)} of weeks disrupted in the long run</small></label>
+      <label class="field"><span>China price shock during disruption</span><input type="number" id="sc-s" min="0" max="5" step="0.05" value="${sc.chinaShock}"/><small>+${fmt(sc.chinaShock * 100, 0)}% on new China orders</small></label>
+      <label class="field"><span>Share of the shock passed to Indian prices</span><input type="number" id="sc-i" min="0" max="1" step="0.05" value="${sc.indiaPassthrough}"/><small>Indian prices +${fmt(sc.chinaShock * sc.indiaPassthrough * 100, 0)}% during disruption</small></label>
+    </div>
+    <p class="muted small">Calibration: five China- or route-linked shocks hit Indian API supply in 2020–2026 (COVID-19 Hubei lockdown, 2021 power rationing, Red Sea attacks, 2025 export-licensing signals, 2026 Hormuz closure), about 0.7 a year, rising to about 1 a year in 2026. Changing any value resets results.</p>
+  </section>`;
+}
+
+function screenOptimise() {
+  if (!ready()) return notReady();
+  const r = S.results[S.api];
+  return html`
+  <div class="row-between"><h1>Optimise</h1>${apiPicker()}</div>
+  <p class="lede">Simulates all 374 policies (11 China shares × 17 buffer levels × switch on/off) against the same simulated years and recommends one. Scenario: <b>${escH(S.scenario.name)}</b>.</p>
+  <section class="card">
+    <div class="form-grid">
+      <label class="field"><span>Fill-rate target</span><input type="number" id="cfg-fill" min="0.9" max="0.999" step="0.005" value="${S.cfg.fillTarget}"/><small>share of API demand met</small></label>
+      <label class="field"><span>Simulated years per policy</span>${sel('cfg-reps', [[250, '250 (fast)'], [500, '500'], [1000, '1,000 (report)'], [2000, '2,000 (precise)']], S.cfg.reps)}</label>
+      <label class="field"><span>Decision rule</span>${sel('cfg-obj', [['robust', 'Robust: near-cheapest, lowest tail risk'], ['total', 'Lowest expected cost'], ['cvar', 'Lowest worst-5% cost']], S.cfg.objective)}</label>
+      <label class="field"><span>Random seed</span><input type="number" id="cfg-seed" min="1" step="1" value="${S.cfg.seed}"/><small>same seed = same result</small></label>
+    </div>
+    <div class="cta-row"><button class="btn primary" id="btn-run" ${S.busy ? 'disabled' : ''}>Run for ${escH(S.api)}</button><button class="btn" id="btn-run-all" ${S.busy ? 'disabled' : ''}>Run all ${S.apis.length} APIs</button></div>
+  </section>
+  ${r ? resultBlock(S.api, r) : '<div class="callout">Press Run to see the recommendation.</div>'}`;
+}
+
+function resultBlock(a, r) {
+  if (!r.best) return `<div class="callout bad">No policy meets the ${pct(r.cfg.fillTarget, 1)} fill-rate target. Try a lower target or more Indian capacity.</div>`;
+  const b = r.best, c = r.current;
+  const sw = r.grid.filter(g => g.sw === b.sw);
+  return html`
+  <section class="card">
+    <h3>Recommended for ${escH(a)}: ${polText(b)}</h3>
+    <div class="kpis">
+      ${kpi('China / India split', `${Math.round(b.alpha * 100)} / ${Math.round((1 - b.alpha) * 100)}`, c ? `now ${Math.round(c.alpha * 100)} / ${Math.round((1 - c.alpha) * 100)}` : '', 'accent')}
+      ${kpi('Safety stock', `${b.ssWk} wks`, c ? `now ${c.ssWk} wks; avg cover ${fmt(b.avgInvWeeks, 1)} wks` : '')}
+      ${kpi('Switch rule', b.sw ? 'On' : 'Off', b.sw ? 'all orders to India in a disruption' : '')}
+      ${kpi('Expected annual cost', `₹${lakh(b.total)} L`, c ? `${c.total >= b.total ? '−' : '+'}₹${lakh(Math.abs(c.total - b.total))} L vs current` : '', c && c.total >= b.total ? 'good' : '')}
+      ${kpi('Fill rate', pct(b.fill, 2), c ? `current ${pct(c.fill, 2)}` : '', c && c.fill < r.cfg.fillTarget ? 'good' : '')}
+      ${kpi('Worst-5% year (CVaR95)', `₹${lakh(b.cvar95)} L`, c ? `current ₹${lakh(c.cvar95)} L` : '')}
+    </div>
+    <p class="muted small">${r.nFeasible} of 374 policies meet the target; ${r.nNear} are within 1% of the cheapest. Standard error of expected cost ±₹${lakh(b.totalSe)} lakh. ${r.cfg.reps.toLocaleString('en-IN')} simulated years per policy, ${fmt(r.seconds, 1)} s. Forecast: ${r.forecastSource === 'reference' ? 'Python reference' : 'fitted in app'}.</p>
+  </section>
+  <section class="card"><h3>Cost vs risk: every policy that meets the target</h3>
+    ${frontierChart({ points: r.grid.filter(g => g.fill >= r.cfg.fillTarget), rec: b, minCost: r.minCost, current: c })}
+    <p class="muted small">Lower-left is better on both axes. Hover a dot for its policy. Lowest average cost: ${polText(r.minCost)} (₹${lakh(r.minCost.total)} lakh, CVaR95 ₹${lakh(r.minCost.cvar95)} lakh).</p></section>
+  <section class="card"><h3>Expected cost by China share and buffer (switch ${b.sw ? 'on' : 'off'})</h3>
+    ${heatmap({ grid: sw, alphas: ALPHAS, ssGrid: SS_GRID, fillTarget: r.cfg.fillTarget, rec: b })}
+    <p class="muted small">Darker = cheaper. Hatched cells miss the fill-rate target. The outlined cell is the recommendation.</p></section>
+  ${c ? `<section class="card"><h3>Where the money goes (per year)</h3>${costBars({ rows: [{ label: 'Current', ...c }, { label: 'Recommended', ...b }] })}
+    <p class="muted small">Resilience costs ₹${lakh(b.purchase - c.purchase)} lakh more in purchases and ₹${lakh(b.holding - c.holding)} lakh in holding, and saves ₹${lakh(c.shortage - b.shortage)} lakh of lost production.</p></section>` : ''}`;
+}
+
+function screenCompare() {
+  if (!ready()) return notReady();
+  const r = S.results[S.api]; const cmp = S.compare[S.api]; const sw = S.sweep[S.api];
+  if (!r || !r.best) return html`<div class="row-between"><h1>Compare & stress-test</h1>${apiPicker()}</div><div class="callout">Run the optimiser for ${escH(S.api)} first.</div>`;
+  const cur = currentPolicy(S.api);
+  let chart = '', table = '';
+  if (cmp) {
+    const scs = [...new Set(cmp.rows.map(x => x.scenario))];
+    const byScen = s => Object.fromEntries(cmp.rows.filter(x => x.scenario === s).map(x => [x.label, x]));
+    chart = signedBars({ groups: ['Recommended', 'Your custom policy'].map(l => ({ label: l, bars: scs.map(s => ({ label: s.split(' ')[0], value: (byScen(s).Current.total - byScen(s)[l].total) / 1e5 })) })) });
+    table = `<table class="t"><thead><tr><th>Scenario</th><th>Policy</th><th class="num">Expected cost (₹ lakh)</th><th class="num">CVaR95 (₹ lakh)</th><th class="num">Fill rate</th><th class="num">Stock-out weeks / yr</th><th class="num">Avg cover (wks)</th></tr></thead><tbody>
+      ${cmp.rows.map(x => `<tr class="${x.label === 'Recommended' ? 'hl' : ''}"><td>${escH(x.scenario)}</td><td>${escH(x.label)}<br><span class="muted small">${polText(x)}</span></td><td class="num">${lakh(x.total)}</td><td class="num">${lakh(x.cvar95)}</td><td class="num ${x.fill < r.cfg.fillTarget ? 'bad' : ''}">${pct(x.fill, 2)}</td><td class="num">${fmt(x.stockoutWeeks, 1)}</td><td class="num">${fmt(x.avgInvWeeks, 1)}</td></tr>`).join('')}</tbody></table>`;
+  }
+  const def = SWEEPS[sw ? sw.key : sweepKey];
+  return html`
+  <div class="row-between"><h1>Compare & stress-test</h1>${apiPicker()}</div>
+  <p class="lede">Konkan cannot re-optimise every year: a dropped Indian supplier takes months to requalify. So test the recommendation, today's policy and your own idea in every scenario.</p>
+  <section class="card"><h3>Policies to compare</h3>
+    <table class="t"><tbody>
+      <tr><td>Current</td><td>${polText({ ...cur, sw: false })} <span class="muted small">(edit on Data & inputs)</span></td></tr>
+      <tr><td>Recommended</td><td>${polText(r.best)}</td></tr>
+      <tr><td>Your custom policy</td><td><div class="inline-fields">
+        <label>China share <input type="number" id="cu-a" min="0" max="1" step="0.1" value="${S.custom.alpha}"/></label>
+        <label>Buffer wks <input type="number" id="cu-k" min="0" max="16" step="1" value="${S.custom.ssWk}"/></label>
+        <label class="check"><input type="checkbox" id="cu-s" ${S.custom.sw ? 'checked' : ''}/> switch</label></div></td></tr>
+    </tbody></table>
+    <div class="cta-row"><button class="btn primary" id="btn-compare" ${S.busy ? 'disabled' : ''}>Stress-test in all scenarios</button></div>
+    ${cmp ? `<h4>Annual saving vs the current policy (₹ lakh; green = saves, red = costs more)</h4>${chart}${table}` : ''}
+  </section>
+  <section class="card"><h3>Sensitivity: does the answer hold?</h3>
+    <div class="inline-fields"><label class="field inline"><span>Vary</span>${sel('sweep-key', Object.entries(SWEEPS).map(([k, v]) => [k, v.label]), sw ? sw.key : sweepKey)}</label>
+    <button class="btn" id="btn-sweep" ${S.busy ? 'disabled' : ''}>Re-optimise for each value</button></div>
+    ${sw ? `<table class="t"><thead><tr><th>${def.label}</th><th class="num">China share</th><th class="num">Buffer (wks)</th><th>Switch</th><th class="num">Expected cost (₹ lakh)</th><th class="num">Fill rate</th></tr></thead><tbody>
+      ${sw.rows.map(x => x.best ? `<tr><td>${def.show(x.value)}</td><td class="num">${pct(x.best.alpha, 0)}</td><td class="num">${x.best.ssWk}</td><td>${x.best.sw ? 'on' : 'off'}</td><td class="num">${lakh(x.best.total)}</td><td class="num">${pct(x.best.fill, 2)}</td></tr>` : `<tr><td>${def.show(x.value)}</td><td colspan="5" class="bad">no policy meets the target</td></tr>`).join('')}</tbody></table>
+      <p class="muted small">Each row re-runs the full 374-policy optimisation with one input changed (up to 1,000 simulated years per policy).</p>` : ''}
+  </section>`;
+}
+
+function screenRecommend() {
+  if (!ready()) return notReady();
+  const done = S.apis.filter(a => S.results[a]);
+  return html`
+  <h1>Recommendations & download</h1>
+  ${!done.length ? '<div class="callout">Run the optimiser for at least one API (Optimise screen).</div>' : ''}
+  ${done.length && done.length < S.apis.length ? `<div class="callout">Results for ${done.length} of ${S.apis.length} APIs. <button class="btn small" id="btn-run-rest">Run the rest</button></div>` : ''}
+  ${done.length ? `<div class="cta-row"><button class="btn primary" id="btn-dl-summary">Download summary (CSV)</button><button class="btn" id="btn-dl-grid">Download policy grid for ${escH(S.api)} (CSV)</button><button class="btn" id="btn-pdf">Download PDF summary</button></div>` : ''}
+  ${done.length > 1 ? portfolioBlock(done) : ''}
+  ${done.map(a => { const adv = adviceFor(a); const r = S.results[a]; return `<section class="card"><h3>${escH(a)} <span class="muted small">· ${escH(r.scenario.name)} · target ${pct(r.cfg.fillTarget, 1)}</span></h3>
+    <ol class="advice">${adv.lines.map(l => `<li>${l}</li>`).join('')}</ol>
+    ${adv.alerts.map(([k, t]) => `<div class="alert ${k}"><span class="alert-tag">${k === 'critical' ? 'Critical' : k === 'warning' ? 'Warning' : 'Note'}</span> ${escH(t)}</div>`).join('')}</section>`; }).join('')}
+  ${done.length ? `<section class="card"><h3>Assumptions behind these numbers</h3><ul class="tight small">
+    <li>Scenario ${escH(S.scenario.name)}: ${fmt(52 * S.scenario.pStart, 2)} disruption starts a year (weekly p ${S.scenario.pStart}), ${S.scenario.meanDur}-week average length, China prices +${fmt(S.scenario.chinaShock * 100, 0)}%, Indian prices +${fmt(S.scenario.chinaShock * S.scenario.indiaPassthrough * 100, 0)}% during a disruption.</li>
+    <li>India supplier capacity ${pct(S.tables.supplier_params.find(s => s.origin === 'India').max_share_of_requirement, 0)} of requirement; crisis allocation up to ${S.surge}× normal India share.</li>
+    <li>Costs per year: purchase + ordering + holding (${pct(S.tables.api_params[0].holding_rate_pa, 0)} a year of China price) + lost production (shortage cost per kg). Monte Carlo estimates; ±1 standard error shown on the Optimise screen.</li></ul></section>` : ''}`;
+}
+
+function portfolioBlock(done) {
+  const rows = done.map(a => ({ a, r: S.results[a] })).filter(x => x.r.best && x.r.current);
+  if (!rows.length) return '';
+  const tc = rows.reduce((s, x) => s + x.r.current.total, 0), tr = rows.reduce((s, x) => s + x.r.best.total, 0);
+  return `<section class="card"><h3>Portfolio: ${rows.length} APIs</h3>
+  <div class="kpis">${kpi('Expected cost, current', `₹${fmt(tc / 1e7, 2)} cr`)}${kpi('Expected cost, recommended', `₹${fmt(tr / 1e7, 2)} cr`, '', 'accent')}${kpi('Annual saving', `₹${fmt((tc - tr) / 1e5, 1)} L`, pct((tc - tr) / tc, 1), tc >= tr ? 'good' : '')}</div>
+  <table class="t"><thead><tr><th>API</th><th>Current</th><th>Recommended</th><th class="num">Saving (₹ lakh)</th><th class="num">Fill now → rec.</th><th class="num">CVaR95 cut (₹ lakh)</th></tr></thead><tbody>
+  ${rows.map(({ a, r }) => `<tr><td>${escH(a)}</td><td class="small">${polText(r.current)}</td><td class="small"><b>${polText(r.best)}</b></td><td class="num">${lakh(r.current.total - r.best.total)}</td><td class="num">${pct(r.current.fill, 1)} → ${pct(r.best.fill, 1)}</td><td class="num">${lakh(r.current.cvar95 - r.best.cvar95)}</td></tr>`).join('')}
+  </tbody></table></section>`;
+}
+
+function screenHelp() {
+  return html`
+  <h1>Help</h1>
+  <section class="card"><h3>Get a recommendation in four steps</h3><ol class="advice">
+    <li><b>Data & inputs.</b> The Konkan Generics sample loads automatically. To use your own data, upload one or more CSV files (formats below) and press <i>Validate and use uploaded files</i>. You can also edit prices, lead times and costs in the tables.</li>
+    <li><b>Forecast.</b> Pick an API and check the forecast and the model comparison. The model with the lowest rolling-origin error is used.</li>
+    <li><b>Risk scenario.</b> Choose Calm, Base or Severe, or type your own disruption probability, length and price shock.</li>
+    <li><b>Optimise.</b> Set the fill-rate target and press <i>Run</i> (about 1 second per API at 1,000 simulated years). Then use <b>Compare & stress-test</b> and <b>Recommendations & download</b>.</li></ol></section>
+  <section class="card"><h3>Input file formats</h3><table class="t"><thead><tr><th>File</th><th>Columns</th><th>Rules</th></tr></thead><tbody>
+    <tr><td class="mono">demand_monthly.csv</td><td class="mono small">month, api, demand_kg</td><td class="small">month as YYYY-MM, consecutive, at least 36 months per API; demand_kg &gt; 0</td></tr>
+    <tr><td class="mono">api_params.csv</td><td class="mono small">${SCHEMAS.api_params.map(c => c.key).join(', ')}</td><td class="small">prices &gt; 0; holding rate and shares 0–1; weeks 0–16; API names must match the demand file</td></tr>
+    <tr><td class="mono">supplier_params.csv</td><td class="mono small">${SCHEMAS.supplier_params.map(c => c.key).join(', ')}</td><td class="small">exactly one row with origin China and one with origin India; lead times 1–26 weeks</td></tr>
+    <tr><td class="mono">scenarios.csv</td><td class="mono small">${SCHEMAS.scenarios.map(c => c.key).join(', ')}</td><td class="small">probability 0–0.2 per week; duration 1–52 weeks; shock as a share (0.6 = +60%)</td></tr>
+  </tbody></table><p class="small">Use <i>Download blank templates</i> or <i>Download sample files</i> on the Data screen as a starting point. If a file has a problem, the app names the file, line and field and does not load it.</p></section>
+  <section class="card"><h3>Glossary</h3><table class="t"><tbody>
+    <tr><td>Fill rate</td><td>share of API demand met from stock in a year; the rest is lost production</td></tr>
+    <tr><td>CVaR95</td><td>average cost of the worst 5% of simulated years: the "bad year" cost</td></tr>
+    <tr><td>Switch rule</td><td>if a China-route disruption is active at a review, order everything from India up to its crisis allocation</td></tr>
+    <tr><td>Crisis allocation</td><td>in a shortage the Indian supplier serves regular customers first: at most this multiple of your normal India share</td></tr>
+    <tr><td>Rolling-origin MAPE</td><td>average % forecast error 1–3 months ahead, re-fitting the model at each of the last 16 months</td></tr>
+    <tr><td>Common random numbers</td><td>every policy faces the same simulated demand, lead times and disruptions, so differences between policies are real, not luck</td></tr>
+  </tbody></table></section>
+  <section class="card"><h3>About this app</h3><p class="small">Supply Chain Analytics course project, PGDM-BDA 2026-27, Goa Institute of Management. Sample data is synthetic; Konkan Generics is a fictional company. Source code: the <code>js/engine/</code> folder of this site (forecast.js, simulation.js) and the Python reference model in the project files.</p></section>`;
+}
+
+// ------------------------------------------------------------------ PDF (print) summary
+function printSummary() {
+  const done = S.apis.filter(a => S.results[a]);
+  const el = $('#print');
+  el.innerHTML = `<h1>API sourcing recommendation: Konkan Generics</h1>
+  <p>Generated ${new Date().toLocaleString('en-IN')} · Scenario: ${escH(S.scenario.name)} · Fill-rate target ${pct(S.cfg.fillTarget, 1)} · ${S.cfg.reps} simulated years per policy · Data: ${S.source === 'sample' ? 'built-in sample (synthetic)' : 'uploaded files'}</p>
+  ${portfolioBlock(done)}
+  ${done.map(a => { const adv = adviceFor(a); return `<section class="card"><h3>${escH(a)}</h3><ol class="advice">${adv.lines.map(l => `<li>${l}</li>`).join('')}</ol>${adv.alerts.map(([k, t]) => `<p class="small">${k === 'critical' ? 'Critical' : k === 'warning' ? 'Warning' : 'Note'}: ${escH(t)}</p>`).join('')}</section>`; }).join('')}
+  <p class="small">Assumptions: weekly disruption start probability ${S.scenario.pStart}, mean length ${S.scenario.meanDur} weeks, China price shock +${fmt(S.scenario.chinaShock * 100, 0)}%, India crisis allocation ${S.surge}× normal share. Monte Carlo simulation-optimisation over 374 policies with common random numbers; recommendation = lowest CVaR95 among feasible policies within 1% of the minimum expected cost.</p>`;
+  window.print();
+}
+
+// ------------------------------------------------------------------ render + events
+function render() {
+  const route = (location.hash || '#about').slice(1); const known = SCREENS.some(s => s[0] === route) ? route : 'about';
+  $('#nav').innerHTML = SCREENS.map(([k, l], i) => `<a href="#${k}" class="${k === known ? 'on' : ''}"><span class="step">${k === 'help' ? '?' : i + 1}</span>${l}${k === 'optimise' && Object.keys(S.results).length ? `<span class="badge">${Object.keys(S.results).length}</span>` : ''}</a>`).join('');
+  const screens = { about: screenAbout, data: screenData, forecast: screenForecast, scenario: screenScenario, optimise: screenOptimise, compare: screenCompare, recommend: screenRecommend, help: screenHelp };
+  $('#main').innerHTML = screens[known]();
+  $('#status').innerHTML = S.tables ? `${S.source === 'sample' ? 'Sample data' : 'Your data'} · ${S.apis.length} APIs · ${escH(S.scenario.name)}` : 'No data';
+  renderBusy(); bind();
+}
+function renderBusy() {
+  const b = $('#busy');
+  if (!S.busy) { b.hidden = true; return; }
+  b.hidden = false; b.innerHTML = `<div class="busy-label">${escH(S.busy.label)}</div><div class="bar"><div class="bar-fill" style="width:${Math.round(S.busy.value * 100)}%"></div></div>`;
+}
+function updateProgress() { const f = document.querySelector('.bar-fill'); if (f && S.busy) f.style.width = `${Math.round(S.busy.value * 100)}%`; }
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => { t.hidden = true; }, 6000); }
+
+function bind() {
+  const on = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
+  on('pick-api', 'change', e => { S.api = e.target.value; render(); });
+  on('btn-run', 'click', () => runOptimise([S.api]));
+  on('btn-run-all', 'click', () => runOptimise(S.apis));
+  on('btn-run-rest', 'click', () => runOptimise(S.apis.filter(a => !S.results[a])));
+  on('btn-compare', 'click', () => runCompare(S.api));
+  on('btn-sweep', 'click', () => runSweep(S.api));
+  on('sweep-key', 'change', e => { sweepKey = e.target.value; });
+  on('cfg-fill', 'change', e => { const v = +e.target.value; if (v >= 0.9 && v < 1) { S.cfg.fillTarget = v; invalidate(); } else toast('Fill-rate target must be between 0.90 and 0.999.'); render(); });
+  on('cfg-reps', 'change', e => { S.cfg.reps = +e.target.value; invalidate(); render(); });
+  on('cfg-obj', 'change', e => { S.cfg.objective = e.target.value; invalidate(); render(); });
+  on('cfg-seed', 'change', e => { const v = Math.round(+e.target.value); if (v >= 1) { S.cfg.seed = v; invalidate(); } render(); });
+  on('use-ref', 'change', e => { S.useReference = e.target.checked; invalidate(); computeForecasts(); });
+  on('surge', 'change', e => { const v = +e.target.value; if (v >= 0 && v <= 5) { S.surge = v; invalidate(); } else toast('Crisis allocation must be between 0 and 5.'); render(); });
+  const scIn = (id, key, lo, hi) => on(id, 'change', e => { const v = +e.target.value; if (Number.isFinite(v) && v >= lo && v <= hi) { S.scenario = { ...S.scenario, [key]: v, name: `${S.scenarioPreset.split(' (')[0]} (edited)` }; invalidate(); } else toast(`Value must be between ${lo} and ${hi}.`); render(); });
+  scIn('sc-p', 'pStart', 0, 0.2); scIn('sc-d', 'meanDur', 1, 52); scIn('sc-s', 'chinaShock', 0, 5); scIn('sc-i', 'indiaPassthrough', 0, 1);
+  document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => { setScenarioPreset(b.dataset.preset); invalidate(); render(); }));
+  const cu = (id, key, conv) => on(id, 'change', e => { S.custom[key] = conv(e.target); delete S.compare[S.api]; });
+  cu('cu-a', 'alpha', t => Math.min(1, Math.max(0, Math.round(+t.value * 10) / 10))); cu('cu-k', 'ssWk', t => Math.min(16, Math.max(0, Math.round(+t.value)))); cu('cu-s', 'sw', t => t.checked);
+  document.querySelectorAll('[data-edit]').forEach(inp => inp.addEventListener('change', e => {
+    const { edit, row, key } = e.target.dataset; const col = SCHEMAS[edit].find(c => c.key === key); const v = +e.target.value;
+    const bad = !Number.isFinite(v) || (col.gt0 && !(v > 0)) || (col.min !== undefined && v < col.min) || (col.max !== undefined && v > col.max);
+    if (bad) { toast(`${key.replace(/_/g, ' ')} must be ${col.gt0 ? '> 0' : ''}${col.min !== undefined ? ` ≥ ${col.min}` : ''}${col.max !== undefined ? ` and ≤ ${col.max}` : ''}.`); e.target.value = S.tables[edit][row][key]; return; }
+    S.tables[edit][row][key] = v; invalidate(); toast('Updated. Results reset; run the optimiser again.');
+  }));
+  on('btn-sample', 'click', () => { S.uploadErrors = []; S.uploadInfo = 'Sample data loaded.'; loadTables(SAMPLE_CSV, 'sample'); render(); });
+  on('btn-apply-upload', 'click', async () => {
+    const files = {}; for (const inp of document.querySelectorAll('[data-file]')) if (inp.files[0]) files[inp.dataset.file] = await inp.files[0].text();
+    if (!Object.keys(files).length) { S.uploadErrors = ['Choose at least one CSV file first.']; S.uploadInfo = ''; render(); return; }
+    const merged = { ...SAMPLE_CSV, ...files }; const errs = loadTables(merged, 'upload');
+    S.uploadErrors = errs; S.uploadInfo = errs.length ? '' : `Loaded ${Object.keys(files).join(', ')}${Object.keys(files).length < 4 ? ' (other files from the sample)' : ''}. Forecasts are being fitted in the app.`;
+    render();
+  });
+  on('btn-templates', 'click', () => { for (const [n, cols] of Object.entries(SCHEMAS)) download(`${n}_template.csv`, cols.map(c => c.key).join(',') + '\n'); });
+  on('btn-sample-csv', 'click', () => { for (const [n, t] of Object.entries(SAMPLE_CSV)) download(`${n}.csv`, t); });
+  on('btn-dl-summary', 'click', () => {
+    const rows = S.apis.filter(a => S.results[a] && S.results[a].best).map(a => ({ a, r: S.results[a] }));
+    download('recommendation_summary.csv', toCsv(rows, [
+      { label: 'api', get: x => x.a }, { label: 'scenario', get: x => x.r.scenario.name }, { label: 'fill_target', get: x => x.r.cfg.fillTarget },
+      { label: 'rec_china_share', get: x => x.r.best.alpha }, { label: 'rec_safety_weeks', get: x => x.r.best.ssWk }, { label: 'rec_switch', get: x => x.r.best.sw },
+      { label: 'rec_cost_lakh', get: x => (x.r.best.total / 1e5).toFixed(2) }, { label: 'rec_cvar95_lakh', get: x => (x.r.best.cvar95 / 1e5).toFixed(2) }, { label: 'rec_fill', get: x => x.r.best.fill.toFixed(4) },
+      { label: 'cur_china_share', get: x => x.r.current.alpha }, { label: 'cur_safety_weeks', get: x => x.r.current.ssWk },
+      { label: 'cur_cost_lakh', get: x => (x.r.current.total / 1e5).toFixed(2) }, { label: 'cur_cvar95_lakh', get: x => (x.r.current.cvar95 / 1e5).toFixed(2) }, { label: 'cur_fill', get: x => x.r.current.fill.toFixed(4) },
+      { label: 'saving_lakh', get: x => ((x.r.current.total - x.r.best.total) / 1e5).toFixed(2) }, { label: 'reps', get: x => x.r.cfg.reps }, { label: 'seed', get: x => x.r.cfg.seed }]));
+  });
+  on('btn-dl-grid', 'click', () => {
+    const r = S.results[S.api]; if (!r) return;
+    download(`policy_grid_${S.api}.csv`, toCsv(r.grid, ['alpha', 'ssWk', 'sw', 'total', 'cvar95', 'fill', 'fillP05', 'purchase', 'ordering', 'holding', 'shortage', 'avgInvWeeks', 'stockoutWeeks', 'totalSe'].map(k => ({ key: k }))));
+  });
+  on('btn-pdf', 'click', printSummary);
+}
+
+window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
+loadTables(SAMPLE_CSV, 'sample');
+render();
+</script>
+</body>
+</html>
